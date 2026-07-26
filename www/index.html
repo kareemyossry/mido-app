@@ -957,8 +957,39 @@
     📱 ثبّت التطبيق على هاتفك
   </button>
 
+  <!-- ========== ACTIVATION SCREEN ========== -->
+  <div class="login-wrapper" id="activation-screen" hidden>
+    <div class="login-card">
+      <div class="brand-mark">M</div>
+      <h2>تفعيل التطبيق</h2>
+      <p>التطبيق ده محتاج تفعيل من صاحبه قبل الاستخدام</p>
+      <div id="activation-error"></div>
+
+      <div class="form-group">
+        <label>كود جهازك (ابعته لصاحب التطبيق)</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="device-code-display" readonly dir="ltr"
+                 style="font-family: monospace; font-size: 16px; text-align:center; letter-spacing:1px;">
+          <button class="btn btn-outline" id="copy-device-code-btn" type="button" style="white-space:nowrap;">نسخ</button>
+        </div>
+      </div>
+
+      <p style="font-size:12.5px; color:var(--text-muted); margin: 10px 0 18px; line-height:1.6;">
+        ابعت الكود ده لصاحب التطبيق (واتساب مثلاً)، وهيبعتلك "كود تفعيل" تكتبه تحت.
+      </p>
+
+      <div class="form-group">
+        <label>كود التفعيل</label>
+        <input type="text" id="activation-code-input" placeholder="XXXX-XXXX" dir="ltr"
+               style="font-family: monospace; text-align:center; letter-spacing:1px;">
+      </div>
+
+      <button class="btn btn-primary" id="activate-btn" style="width: 100%; padding: 11px; margin-top: 6px;">تفعيل</button>
+    </div>
+  </div>
+
   <!-- ========== LOGIN SCREEN ========== -->
-  <div class="login-wrapper" id="login-screen">
+  <div class="login-wrapper" id="login-screen" hidden>
     <div class="login-card">
       <div class="brand-mark">M</div>
       <h2>تسجيل الدخول</h2>
@@ -1071,6 +1102,87 @@
       installBanner.classList.remove('show');
       showToast('🎉 شكراً لتثبيت التطبيق!');
     });
+
+    // ==================== APP ACTIVATION (ربط التطبيق بجهاز واحد) ====================
+    // سر ثابت جوه التطبيق - نفس القيمة لازم تكون موجودة في أداة توليد
+    // كود التفعيل اللي هتفضل عندك انت بس (مش بتتوزع مع التطبيق)
+    const MIDO_ACTIVATION_SECRET = "Mido-Kareem-2026-XyQ7-SecretKey";
+
+    function getOrCreateDeviceCode() {
+      let code = localStorage.getItem('mido_device_code');
+      if (!code) {
+        const bytes = new Uint8Array(6);
+        crypto.getRandomValues(bytes);
+        const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+        code = hex.match(/.{1,4}/g).join('-');
+        localStorage.setItem('mido_device_code', code);
+      }
+      return code;
+    }
+
+    async function computeExpectedActivationCode(deviceCode) {
+      const enc = new TextEncoder();
+      const data = enc.encode(deviceCode + MIDO_ACTIVATION_SECRET);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+      return hex.slice(0, 8).match(/.{1,4}/g).join('-');
+    }
+
+    function normalizeCode(code) {
+      return (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    }
+
+    function isActivated() {
+      return localStorage.getItem('mido_activated') === '1';
+    }
+
+    async function initActivationScreen() {
+      const deviceCode = getOrCreateDeviceCode();
+      document.getElementById('device-code-display').value = deviceCode;
+
+      document.getElementById('copy-device-code-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText(deviceCode).then(() => {
+          showToast('تم نسخ كود الجهاز');
+        }).catch(() => {
+          document.getElementById('device-code-display').select();
+          showToast('حدد الكود وانسخه يدويًا');
+        });
+      });
+
+      async function submitActivation() {
+        const errBox = document.getElementById('activation-error');
+        errBox.innerHTML = '';
+        const entered = normalizeCode(document.getElementById('activation-code-input').value);
+        const expected = normalizeCode(await computeExpectedActivationCode(deviceCode));
+
+        if (entered && entered === expected) {
+          localStorage.setItem('mido_activated', '1');
+          showToast('تم تفعيل التطبيق بنجاح');
+          document.getElementById('activation-screen').hidden = true;
+          checkAuth();
+        } else {
+          errBox.innerHTML = `<div class="form-error">❌ كود التفعيل غير صحيح</div>`;
+        }
+      }
+
+      document.getElementById('activate-btn').addEventListener('click', submitActivation);
+      document.getElementById('activation-code-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitActivation();
+      });
+    }
+
+    function checkActivation() {
+      if (isActivated()) {
+        document.getElementById('activation-screen').hidden = true;
+        checkAuth();
+      } else {
+        document.getElementById('login-screen').hidden = true;
+        document.getElementById('app-container').style.display = 'none';
+        document.getElementById('activation-screen').hidden = false;
+        initActivationScreen();
+      }
+    }
 
     // ==================== ADMIN AUTHENTICATION ====================
     const ADMIN_USER = "admin";
@@ -2353,7 +2465,7 @@
 
     // ========== INIT ==========
     document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    checkAuth();
+    checkActivation();
     if (sessionStorage.getItem('mido_admin_logged') === 'true') {
       loadDashboard();
     }
