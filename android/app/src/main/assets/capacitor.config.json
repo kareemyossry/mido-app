@@ -1,0 +1,8 @@
+{
+	"appId": "com.mido.app",
+	"appName": "Mido",
+	"webDir": "www",
+	"server": {
+		"androidScheme": "https"
+	}
+}
