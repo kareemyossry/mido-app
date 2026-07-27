@@ -751,6 +751,50 @@
       display: none;
     }
 
+    /* ===== In-App Notification ===== */
+    .inapp-notification {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      left: 20px;
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 14px 18px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      z-index: 300;
+      font-family: 'Tajawal', sans-serif;
+      font-size: 14px;
+      animation: slideDown 0.3s ease;
+      direction: rtl;
+      text-align: right;
+      color: white;
+    }
+
+    .inapp-notification.info {
+      background: var(--primary);
+    }
+    .inapp-notification.warning {
+      background: var(--amber);
+    }
+    .inapp-notification.danger {
+      background: var(--danger);
+    }
+    .inapp-notification.success {
+      background: var(--primary-dark);
+    }
+
+    @keyframes slideDown {
+      from {
+        transform: translateY(-30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
     /* ---------- Circles ---------- */
     .turn-badge {
       width: 26px;
@@ -931,6 +975,14 @@
       .round-table {
         font-size: 11px;
       }
+
+      .inapp-notification {
+        top: 60px;
+        right: 10px;
+        left: 10px;
+        font-size: 13px;
+        padding: 12px 14px;
+      }
     }
 
     @media (max-width: 480px) {
@@ -973,7 +1025,7 @@
         <label>كود جهازك (ابعته لصاحب التطبيق)</label>
         <div style="display:flex; gap:8px;">
           <input type="text" id="device-code-display" readonly dir="ltr"
-            style="font-family: monospace; font-size: 16px; text-align:center; letter-spacing:1px;">
+          style="font-family: monospace; font-size: 16px; text-align:center; letter-spacing:1px;">
           <button class="btn btn-outline" id="copy-device-code-btn" type="button" style="white-space:nowrap;">نسخ</button>
         </div>
       </div>
@@ -985,7 +1037,7 @@
       <div class="form-group">
         <label>كود التفعيل</label>
         <input type="text" id="activation-code-input" placeholder="XXXX-XXXX" dir="ltr"
-          style="font-family: monospace; text-align:center; letter-spacing:1px;">
+        style="font-family: monospace; text-align:center; letter-spacing:1px;">
       </div>
 
       <button class="btn btn-primary" id="activate-btn" style="width: 100%; padding: 11px; margin-top: 6px;">تفعيل</button>
@@ -1107,7 +1159,7 @@
       showToast('🎉 شكراً لتثبيت التطبيق!');
     });
 
-    // ==================== APP ACTIVATION (ربط التطبيق بجهاز واحد) ====================
+    // ==================== APP ACTIVATION ====================
     const MIDO_ACTIVATION_SECRET = "Mido-Kareem-2026-XyQ7-SecretKey";
 
     function getOrCreateDeviceCode() {
@@ -1485,6 +1537,41 @@
       document.getElementById('modal-backdrop').hidden = false;
     }
 
+    // ===== In-App Notification =====
+    function showInAppNotification(message, type = 'info', duration = 8000) {
+      const colors = {
+        info: 'var(--primary)',
+        warning: 'var(--amber)',
+        danger: 'var(--danger)',
+        success: 'var(--primary-dark)'
+      };
+      const icons = { info: '📢', warning: '⚠️', danger: '🚨', success: '✅' };
+      const titles = { info: 'إشعار', warning: 'تنبيه', danger: 'مهم', success: 'تم بنجاح' };
+
+      const notification = document.createElement('div');
+      notification.className = `inapp-notification ${type}`;
+      notification.style.background = colors[type] || colors.info;
+      notification.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">${icons[type] || '📢'}</span>
+          <div style="flex:1;">
+            <div style="font-weight:700; margin-bottom:4px;">${titles[type] || 'إشعار'}</div>
+            <div style="font-weight:400; font-size:13px; opacity:0.95; white-space:pre-line;">${message}</div>
+          </div>
+          <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer;">✕</button>
+        </div>
+      `;
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        if (notification.parentElement) {
+          notification.style.opacity = '0';
+          notification.style.transition = 'opacity 0.3s';
+          setTimeout(() => notification.remove(), 300);
+        }
+      }, duration);
+    }
+
     document.getElementById('modal-backdrop').addEventListener('click', (e) => {
       if (e.target.id === 'modal-backdrop') closeModal();
     });
@@ -1853,7 +1940,7 @@
       `);
     }
 
-    // ========== DELETE CUSTOMER WITH CONFIRMATION ==========
+    // ========== DELETE CUSTOMER ==========
     async function deleteCustomer(id) {
       const customer = await db.getById('customers', id);
       if (!customer) return;
@@ -2120,7 +2207,7 @@
       `);
     }
 
-    // ==================== LOCAL NOTIFICATIONS ====================
+    // ==================== NOTIFICATIONS ====================
     function hasNotifications() {
       return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications);
     }
@@ -2298,12 +2385,11 @@
       scheduleReminderForInstallmentId(nextInst.id);
     }
 
-    // ==================== تعديل دالة unpayInstallmentGeneric - بتمسح من payment_log ====================
+    // ===== unpayInstallmentGeneric - بتمسح من payment_log =====
     async function unpayInstallmentGeneric(instId, contextType, contextId) {
       try {
         const inst = await db.getById('installments', instId);
 
-        // حذف سجلات الدفع من payment_log
         const allLogs = await db.getAll('payment_log');
         const logsToDelete = allLogs.filter(log => log.installment_id === instId);
         for (let log of logsToDelete) {
@@ -2658,9 +2744,9 @@
       }
     }
 
-    // ========== BACKUP & RESTORE (Excel) ==========
+    // ========== BACKUP & RESTORE (Excel مع مشاركة) ==========
 
-    // ===== تصدير Excel =====
+    // ===== تصدير Excel مع زر مشاركة =====
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
         showToast('⏳ جاري تجهيز ملف Excel...');
@@ -2786,12 +2872,36 @@
         XLSX.utils.book_append_sheet(wb, wsPO, 'صرف_الجمعيات');
 
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/octet-stream' });
-        const url = URL.createObjectURL(blob);
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const fileName = `Mido_App_Backup_${todayStr()}.xlsx`;
 
+        // ===== استخدام Share API (الأفضل للموبايل) =====
+        if (navigator.share && window.isSecureContext) {
+          try {
+            const file = new File([wbout], fileName, {
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            await navigator.share({
+              files: [file],
+              title: '📊 نسخة احتياطية Mido',
+              text: 'ملف Excel يحتوي على جميع بيانات التطبيق'
+            });
+            showToast('✅ تم تصدير الملف ومشاركته');
+            return;
+          } catch (e) {
+            if (e.name === 'AbortError') {
+              showToast('❌ تم إلغاء المشاركة');
+              return;
+            }
+            // لو فشلت المشاركة، نكمل بالتحميل العادي
+          }
+        }
+
+        // ===== تحميل عادي (للحواسب أو لو المشاركة مش مدعومة) =====
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Mido_App_Backup_${todayStr()}.xlsx`;
+        a.download = fileName;
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
@@ -2799,7 +2909,16 @@
 
         setTimeout(() => {
           URL.revokeObjectURL(url);
-          showToast('✅ تم التصدير بنجاح كملف Excel');
+          showToast('✅ تم التصدير بنجاح');
+
+          setTimeout(() => {
+            showInAppNotification(
+              '📁 الملف موجود في مجلد التنزيلات (Downloads)\nافتح تطبيق الملفات وابحث عن:\n' + fileName,
+              'info',
+              10000
+            );
+          }, 1000);
+
         }, 1500);
 
       } catch (err) {
@@ -2859,7 +2978,6 @@
             if (cust && cust.name === custName) { custId = newId; break; }
           }
           if (!custId) {
-            // لو العميل مش موجود، نضيفه
             custId = await db.add('customers', { name: custName || 'عميل غير معروف', created_at: todayStr() });
           }
           const id = await db.add('plans', {
