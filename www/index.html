@@ -1101,6 +1101,7 @@
         <button class="btn-new" id="global-new-plan">+ خطة تقسيط جديدة</button>
         <button class="btn-secondary-action" id="backup-btn">📊 تصدير Excel</button>
         <button class="btn-secondary-action" id="restore-btn">📂 استرجاع من Excel</button>
+        <button class="btn-secondary-action" id="saved-files-btn">📂 الملفات المحفوظة</button>
         <button class="btn-secondary-action btn-logout" id="logout-btn">🚪 تسجيل الخروج</button>
         <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none">
       </div>
@@ -2744,9 +2745,159 @@
       }
     }
 
-    // ========== BACKUP & RESTORE (Excel مع مشاركة) ==========
+    // ============================================================
+    // ========== BACKUP & RESTORE (Excel مع حفظ في التطبيق) ==========
+    // ============================================================
 
-    // ===== تصدير Excel مع زر مشاركة =====
+    // ===== 1. فتح قاعدة الملفات المحفوظة =====
+    function openFileDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('MidoFileStore', 1);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('files')) {
+            db.createObjectStore('files', { keyPath: 'name' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject('فشل فتح قاعدة الملفات');
+      });
+    }
+
+    // ===== 2. حفظ ملف في التطبيق =====
+    async function saveFileToApp(fileName, data) {
+      try {
+        const db = await openFileDB();
+        const tx = db.transaction('files', 'readwrite');
+        const store = tx.objectStore('files');
+        store.put({ name: fileName, data: data, type: 'xlsx', date: todayStr() });
+        await new Promise((resolve) => tx.oncomplete = resolve);
+        return true;
+      } catch (err) {
+        console.log('فشل حفظ الملف:', err);
+        return false;
+      }
+    }
+
+    // ===== 3. تحميل ملف من التطبيق =====
+    async function getFileFromApp(fileName) {
+      try {
+        const db = await openFileDB();
+        const tx = db.transaction('files', 'readonly');
+        const store = tx.objectStore('files');
+        const request = store.get(fileName);
+        const result = await new Promise((resolve) => {
+          request.onsuccess = () => resolve(request.result);
+        });
+        return result;
+      } catch (err) {
+        console.log('فشل جلب الملف:', err);
+        return null;
+      }
+    }
+
+    // ===== 4. عرض قائمة الملفات المحفوظة =====
+    async function showSavedFiles() {
+      try {
+        const db = await openFileDB();
+        const tx = db.transaction('files', 'readonly');
+        const store = tx.objectStore('files');
+        const request = store.getAll();
+        const files = await new Promise((resolve) => {
+          request.onsuccess = () => resolve(request.result || []);
+        });
+
+        if (files.length === 0) {
+          showToast('📂 مفيش ملفات محفوظة');
+          return;
+        }
+
+        let html = `<h2>📂 الملفات المحفوظة</h2>
+        <div style="max-height:350px; overflow-y:auto;">`;
+
+        for (const file of files) {
+          html += `
+            <div class="row-item" style="cursor:pointer;">
+              <div class="row-main">
+                <div class="row-title">📊 ${file.name}</div>
+                <div class="row-sub">تم الحفظ: ${file.date || 'غير معروف'}</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="downloadSavedFile('${file.name}')">تحميل</button>
+              <button class="btn btn-danger-text btn-sm" onclick="deleteSavedFile('${file.name}')">🗑️</button>
+            </div>
+          `;
+        }
+
+        html += `</div>
+        <div class="modal-close-row">
+          <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
+        </div>`;
+
+        openModal(html);
+
+      } catch (err) {
+        showToast('❌ خطأ: ' + err.message);
+      }
+    }
+
+    // ===== 5. تحميل ملف محفوظ =====
+    async function downloadSavedFile(fileName) {
+      try {
+        showToast('⏳ جاري تجهيز الملف...');
+        const file = await getFileFromApp(fileName);
+        if (!file) {
+          showToast('❌ الملف غير موجود');
+          return;
+        }
+
+        const blob = new Blob([file.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          showToast('✅ تم تحميل الملف بنجاح');
+          closeModal();
+
+          setTimeout(() => {
+            showInAppNotification(
+              '📁 الملف في مجلد التنزيلات\nافتح تطبيق الملفات وابحث عن:\n' + fileName,
+              'info',
+              10000
+            );
+          }, 1000);
+
+        }, 1000);
+
+      } catch (err) {
+        showToast('❌ خطأ: ' + err.message);
+      }
+    }
+
+    // ===== 6. حذف ملف محفوظ =====
+    async function deleteSavedFile(fileName) {
+      if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
+      try {
+        const db = await openFileDB();
+        const tx = db.transaction('files', 'readwrite');
+        const store = tx.objectStore('files');
+        store.delete(fileName);
+        await new Promise((resolve) => tx.oncomplete = resolve);
+        showToast('✅ تم حذف الملف');
+        showSavedFiles();
+      } catch (err) {
+        showToast('❌ خطأ: ' + err.message);
+      }
+    }
+
+    // ===== 7. تصدير Excel وحفظه في التطبيق =====
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
         showToast('⏳ جاري تجهيز ملف Excel...');
@@ -2872,61 +3023,63 @@
         XLSX.utils.book_append_sheet(wb, wsPO, 'صرف_الجمعيات');
 
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const fileName = `Mido_App_Backup_${todayStr()}.xlsx`;
 
-        // ===== استخدام Share API (الأفضل للموبايل) =====
-        if (navigator.share && window.isSecureContext) {
-          try {
-            const file = new File([wbout], fileName, {
-              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            });
-            await navigator.share({
-              files: [file],
-              title: '📊 نسخة احتياطية Mido',
-              text: 'ملف Excel يحتوي على جميع بيانات التطبيق'
-            });
-            showToast('✅ تم تصدير الملف ومشاركته');
-            return;
-          } catch (e) {
-            if (e.name === 'AbortError') {
-              showToast('❌ تم إلغاء المشاركة');
-              return;
-            }
-            // لو فشلت المشاركة، نكمل بالتحميل العادي
-          }
-        }
+        // ===== حفظ الملف في التطبيق =====
+        const saved = await saveFileToApp(fileName, wbout);
+        if (saved) {
+          showToast('✅ تم حفظ الملف في التطبيق');
 
-        // ===== تحميل عادي (للحواسب أو لو المشاركة مش مدعومة) =====
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+          // ===== عرض نافذة تحميل الملف =====
+          openModal(`
+            <h2>📊 تم حفظ الملف</h2>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
+              تم حفظ الملف داخل التطبيق. يمكنك تحميله أو فتحه الآن.
+            </p>
+            <div class="summary-box" style="margin-bottom:16px;">
+              <div class="summary-row"><span class="label">اسم الملف</span><span class="value" style="font-size:12px;">${fileName}</span></div>
+              <div class="summary-row"><span class="label">تاريخ الحفظ</span><span class="value">${todayStr()}</span></div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="downloadSavedFile('${fileName}')" style="flex:1;">
+                ⬇️ تحميل الملف
+              </button>
+              <button class="btn btn-outline" onclick="closeModal()" style="flex:1;">
+                إغلاق
+              </button>
+            </div>
+            <p class="form-hint" style="margin-top:12px;">
+              💡 الملف موجود داخل التطبيق. استخدم زر "تحميل الملف" لحفظه في هاتفك.
+              <br>
+              📂 كل الملفات المحفوظة موجودة في "الملفات المحفوظة" من القائمة الجانبية.
+            </p>
+          `);
 
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          showToast('✅ تم التصدير بنجاح');
+        } else {
+          // ===== لو فشل الحفظ في التطبيق، نستخدم التحميل المباشر =====
+          const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
 
           setTimeout(() => {
-            showInAppNotification(
-              '📁 الملف موجود في مجلد التنزيلات (Downloads)\nافتح تطبيق الملفات وابحث عن:\n' + fileName,
-              'info',
-              10000
-            );
-          }, 1000);
-
-        }, 1500);
+            URL.revokeObjectURL(url);
+            showToast('✅ تم التحميل المباشر');
+          }, 1500);
+        }
 
       } catch (err) {
-        showToast('❌ خطأ أثناء التصدير: ' + err.message);
+        showToast('❌ خطأ: ' + err.message);
       }
     });
 
-    // ===== استرجاع من Excel =====
+    // ===== 8. استرجاع من Excel =====
     document.getElementById('restore-btn').addEventListener('click', () => {
       document.getElementById('import-file').click();
     });
@@ -3040,6 +3193,13 @@
       } catch (err) {
         alert('❌ فشل استرجاع الملف: ' + err.message);
       }
+    });
+
+    // ===== 9. زر عرض الملفات المحفوظة =====
+    document.getElementById('saved-files-btn').addEventListener('click', () => {
+      showSavedFiles();
+      sidebar.classList.remove('open');
+      drawerOverlay.classList.remove('open');
     });
 
     // ========== INIT ==========
