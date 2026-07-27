@@ -1198,6 +1198,13 @@
         loginScreen.hidden = true;
         appContainer.style.display = 'flex';
         changePassBtn.classList.add('show');
+        // تحديث التاريخ
+        document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
       } else {
         loginScreen.hidden = false;
         appContainer.style.display = 'none';
@@ -1446,7 +1453,7 @@
 
       async clearAll() {
         const db = await this.open();
-        const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments', 'circle_payouts'];
+        const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments', 'circle_payouts', 'payment_log'];
         const tx = db.transaction(stores, 'readwrite');
         for (let s of stores) {
           tx.objectStore(s).clear();
@@ -1462,6 +1469,7 @@
 
     function fmt(n) { return Number(n || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function todayStr() { return new Date().toISOString().slice(0, 10); }
+    function round2(n) { return Math.round(n * 100) / 100; }
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -1557,8 +1565,14 @@
         let overdueAmount = 0;
         let dueSoonCount = 0;
         let dueSoonAmount = 0;
+        let totalCashPurchases = 0;
         const currentMonth = today.substring(0, 7);
         const upcoming = [];
+
+        // إجمالي المشتريات نقداً (مجموع أسعار المنتجات من كل الخطط)
+        plans.forEach(p => {
+          totalCashPurchases += p.total_amount || 0;
+        });
 
         // دفعت نقدًا الشهر ده = مجموع كل الدفعات (كاملة أو جزئية) اللي حصلت الشهر ده فعليًا
         const collectedThisMonth = round2(
@@ -1608,10 +1622,10 @@
               <div class="kpi-label">خطط نشطة</div>
               <div class="kpi-value num primary">${plans.length}</div>
             </div>
-            <div class="kpi-card">
-              <div class="kpi-label">إجمالي المستحق</div>
-              <div class="kpi-value num">${fmt(totalOutstanding)}</div>
-              <div class="kpi-sub">جنيه</div>
+            <div class="kpi-card" style="background:#FFF8E7; border-color:var(--amber);">
+              <div class="kpi-label">💰 المشتريات نقداً</div>
+              <div class="kpi-value num amber">${fmt(totalCashPurchases)}</div>
+              <div class="kpi-sub">إجمالي قيمة المنتجات</div>
             </div>
             <div class="kpi-card">
               <div class="kpi-label">أقساط متأخرة</div>
@@ -1871,8 +1885,6 @@
       }
     }
 
-    // (payment recording is now handled centrally by openPayModal / unpayInstallmentGeneric)
-
     function openCustomerForm() {
       openModal(`
         <h2>عميل جديد</h2>
@@ -2106,8 +2118,6 @@
       `);
     }
 
-    function round2(n) { return Math.round(n * 100) / 100; }
-
     // ==================== LOCAL NOTIFICATIONS (تنبيه ميعاد القسط) ====================
     // شغالة بس لما التطبيق يبقى مثبت فعليًا كتطبيق أندرويد (مش وهو بيتفتح
     // كصفحة عادية في المتصفح للمعاينة) - عشان محتاجة الجسر الأصلي بتاع الموبايل
@@ -2288,9 +2298,18 @@
       scheduleReminderForInstallmentId(nextInst.id);
     }
 
+    // ==================== تعديل دالة unpayInstallmentGeneric - بتمسح من payment_log ====================
     async function unpayInstallmentGeneric(instId, contextType, contextId) {
       try {
         const inst = await db.getById('installments', instId);
+        
+        // حذف سجلات الدفع من payment_log
+        const allLogs = await db.getAll('payment_log');
+        const logsToDelete = allLogs.filter(log => log.installment_id === instId);
+        for (let log of logsToDelete) {
+          await db.delete('payment_log', log.id);
+        }
+        
         if (inst.carried_forward) {
           const all = await db.getAll('installments');
           const nextInst = all.find(x => x.plan_id === inst.plan_id && x.seq === inst.seq + 1);
@@ -2637,12 +2656,14 @@
     }
 
     // ========== BACKUP & RESTORE ==========
+    // ==================== تعديل دالة backup-btn ====================
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
         const data = {
           customers: await db.getAll('customers'),
           plans: await db.getAll('plans'),
           installments: await db.getAll('installments'),
+          payment_log: await db.getAll('payment_log'),
           circles: await db.getAll('circles'),
           circle_members: await db.getAll('circle_members'),
           circle_payments: await db.getAll('circle_payments'),
@@ -2652,14 +2673,24 @@
         const jsonStr = JSON.stringify(data, null, 2);
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
+        
+        showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
+        
         const a = document.createElement('a');
         a.href = url;
         a.download = `Mido_App_Backup_${todayStr()}.json`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
-        showToast('تم تصدير النسخة الاحتياطية بنجاح');
+        document.body.removeChild(a);
+        
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          showToast('✅ تم التصدير بنجاح في مجلد التنزيلات');
+        }, 1000);
+        
       } catch (err) {
-        showToast('خطأ أثناء التصدير: ' + err.message);
+        showToast('❌ خطأ أثناء التصدير: ' + err.message);
       }
     });
 
