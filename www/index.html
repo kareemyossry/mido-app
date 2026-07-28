@@ -19,10 +19,6 @@
     href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap"
     rel="stylesheet">
 
-  <!-- ===== مكتبة Excel ===== -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
-  </script>
-
   <style>
     :root {
       --navy: #0F1B2B;
@@ -751,50 +747,6 @@
       display: none;
     }
 
-    /* ===== In-App Notification ===== */
-    .inapp-notification {
-      position: fixed;
-      top: 70px;
-      right: 20px;
-      left: 20px;
-      max-width: 400px;
-      margin: 0 auto;
-      padding: 14px 18px;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-      z-index: 300;
-      font-family: 'Tajawal', sans-serif;
-      font-size: 14px;
-      animation: slideDown 0.3s ease;
-      direction: rtl;
-      text-align: right;
-      color: white;
-    }
-
-    .inapp-notification.info {
-      background: var(--primary);
-    }
-    .inapp-notification.warning {
-      background: var(--amber);
-    }
-    .inapp-notification.danger {
-      background: var(--danger);
-    }
-    .inapp-notification.success {
-      background: var(--primary-dark);
-    }
-
-    @keyframes slideDown {
-      from {
-        transform: translateY(-30px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
     /* ---------- Circles ---------- */
     .turn-badge {
       width: 26px;
@@ -975,14 +927,6 @@
       .round-table {
         font-size: 11px;
       }
-
-      .inapp-notification {
-        top: 60px;
-        right: 10px;
-        left: 10px;
-        font-size: 13px;
-        padding: 12px 14px;
-      }
     }
 
     @media (max-width: 480px) {
@@ -1025,7 +969,7 @@
         <label>كود جهازك (ابعته لصاحب التطبيق)</label>
         <div style="display:flex; gap:8px;">
           <input type="text" id="device-code-display" readonly dir="ltr"
-          style="font-family: monospace; font-size: 16px; text-align:center; letter-spacing:1px;">
+                 style="font-family: monospace; font-size: 16px; text-align:center; letter-spacing:1px;">
           <button class="btn btn-outline" id="copy-device-code-btn" type="button" style="white-space:nowrap;">نسخ</button>
         </div>
       </div>
@@ -1037,7 +981,7 @@
       <div class="form-group">
         <label>كود التفعيل</label>
         <input type="text" id="activation-code-input" placeholder="XXXX-XXXX" dir="ltr"
-        style="font-family: monospace; text-align:center; letter-spacing:1px;">
+               style="font-family: monospace; text-align:center; letter-spacing:1px;">
       </div>
 
       <button class="btn btn-primary" id="activate-btn" style="width: 100%; padding: 11px; margin-top: 6px;">تفعيل</button>
@@ -1099,10 +1043,10 @@
       </nav>
       <div class="sidebar-footer">
         <button class="btn-new" id="global-new-plan">+ خطة تقسيط جديدة</button>
-        <button class="btn-secondary-action" id="backup-btn">📊 تصدير Excel</button>
-        <button class="btn-secondary-action" id="restore-btn">📂 استرجاع من Excel</button>
+        <button class="btn-secondary-action" id="backup-btn">💾 نسخة احتياطية (تصدير)</button>
+        <button class="btn-secondary-action" id="restore-btn">📂 استرجاع البيانات</button>
         <button class="btn-secondary-action btn-logout" id="logout-btn">🚪 تسجيل الخروج</button>
-        <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none">
+        <input type="file" id="import-file" accept=".json" style="display:none">
       </div>
     </aside>
 
@@ -1159,7 +1103,9 @@
       showToast('🎉 شكراً لتثبيت التطبيق!');
     });
 
-    // ==================== APP ACTIVATION ====================
+    // ==================== APP ACTIVATION (ربط التطبيق بجهاز واحد) ====================
+    // سر ثابت جوه التطبيق - نفس القيمة لازم تكون موجودة في أداة توليد
+    // كود التفعيل اللي هتفضل عندك انت بس (مش بتتوزع مع التطبيق)
     const MIDO_ACTIVATION_SECRET = "Mido-Kareem-2026-XyQ7-SecretKey";
 
     function getOrCreateDeviceCode() {
@@ -1240,6 +1186,7 @@
 
     // ==================== ADMIN AUTHENTICATION ====================
     let ADMIN_USER = localStorage.getItem('mido_admin_username') || "admin";
+    // جلب كلمة السر المخزنة أو استخدام الافتراضية
     let ADMIN_PASS = localStorage.getItem('mido_admin_password') || "admin123";
 
     function checkAuth() {
@@ -1251,12 +1198,6 @@
         loginScreen.hidden = true;
         appContainer.style.display = 'flex';
         changePassBtn.classList.add('show');
-        document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
       } else {
         loginScreen.hidden = false;
         appContainer.style.display = 'none';
@@ -1340,6 +1281,7 @@
         const confirmPass = document.getElementById('confirm-password').value.trim();
         const errBox = document.getElementById('change-pwd-error');
 
+        // التحقق من كلمة السر الحالية
         if (oldPass !== ADMIN_PASS) {
           errBox.innerHTML = `<div class="form-error">❌ كلمة السر الحالية غير صحيحة</div>`;
           return;
@@ -1350,6 +1292,7 @@
           return;
         }
 
+        // لو حدد كلمة سر جديدة، نتحقق منها
         if (newPass) {
           if (newPass.length < 4) {
             errBox.innerHTML = `<div class="form-error">❌ كلمة السر الجديدة قصيرة جداً (4 أحرف على الأقل)</div>`;
@@ -1365,11 +1308,13 @@
           }
         }
 
+        // حفظ اسم المستخدم الجديد لو اتحدد
         if (newUsername) {
           ADMIN_USER = newUsername;
           localStorage.setItem('mido_admin_username', newUsername);
         }
 
+        // حفظ كلمة السر الجديدة لو اتحددت
         if (newPass) {
           ADMIN_PASS = newPass;
           localStorage.setItem('mido_admin_password', newPass);
@@ -1377,6 +1322,8 @@
 
         closeModal();
         showToast('✅ تم حفظ بيانات الدخول الجديدة');
+
+        // تسجيل الخروج عشان يدخل بالبيانات الجديدة
         sessionStorage.removeItem('mido_admin_logged');
         checkAuth();
       });
@@ -1400,6 +1347,8 @@
           };
           request.onsuccess = () => {
             this.db = request.result;
+            // لو حد فتح نسخة أحدث من التطبيق في تاب تاني، نقفل الاتصال ده
+            // تلقائيًا عشان منمنعش الترقية هناك
             this.db.onversionchange = () => {
               this.db.close();
               this.db = null;
@@ -1497,9 +1446,7 @@
 
       async clearAll() {
         const db = await this.open();
-        const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments',
-          'circle_payouts', 'payment_log'
-        ];
+        const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments', 'circle_payouts'];
         const tx = db.transaction(stores, 'readwrite');
         for (let s of stores) {
           tx.objectStore(s).clear();
@@ -1514,10 +1461,7 @@
     const state = { view: 'dashboard', customers: [], plans: [] };
 
     function fmt(n) { return Number(n || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-
     function todayStr() { return new Date().toISOString().slice(0, 10); }
-
-    function round2(n) { return Math.round(n * 100) / 100; }
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -1537,41 +1481,6 @@
       document.getElementById('modal-backdrop').hidden = false;
     }
 
-    // ===== In-App Notification =====
-    function showInAppNotification(message, type = 'info', duration = 8000) {
-      const colors = {
-        info: 'var(--primary)',
-        warning: 'var(--amber)',
-        danger: 'var(--danger)',
-        success: 'var(--primary-dark)'
-      };
-      const icons = { info: '📢', warning: '⚠️', danger: '🚨', success: '✅' };
-      const titles = { info: 'إشعار', warning: 'تنبيه', danger: 'مهم', success: 'تم بنجاح' };
-
-      const notification = document.createElement('div');
-      notification.className = `inapp-notification ${type}`;
-      notification.style.background = colors[type] || colors.info;
-      notification.innerHTML = `
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-size:20px;">${icons[type] || '📢'}</span>
-          <div style="flex:1;">
-            <div style="font-weight:700; margin-bottom:4px;">${titles[type] || 'إشعار'}</div>
-            <div style="font-weight:400; font-size:13px; opacity:0.95; white-space:pre-line;">${message}</div>
-          </div>
-          <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer;">✕</button>
-        </div>
-      `;
-      document.body.appendChild(notification);
-
-      setTimeout(() => {
-        if (notification.parentElement) {
-          notification.style.opacity = '0';
-          notification.style.transition = 'opacity 0.3s';
-          setTimeout(() => notification.remove(), 300);
-        }
-      }, duration);
-    }
-
     document.getElementById('modal-backdrop').addEventListener('click', (e) => {
       if (e.target.id === 'modal-backdrop') closeModal();
     });
@@ -1589,8 +1498,7 @@
     });
 
     // Navigation
-    const titles = { dashboard: 'الرئيسية', customers: 'العملاء', plans: 'خطط التقسيط', circles: 'الجمعيات',
-      overdue: 'المتأخرات' };
+    const titles = { dashboard: 'الرئيسية', customers: 'العملاء', plans: 'خطط التقسيط', circles: 'الجمعيات', overdue: 'المتأخرات' };
 
     document.querySelectorAll('.nav-item:not(#change-password-nav)').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1602,8 +1510,7 @@
 
     function switchView(view) {
       state.view = view;
-      document.querySelectorAll('.nav-item:not(#change-password-nav)').forEach(b => b.classList.toggle('active', b
-        .dataset.view === view));
+      document.querySelectorAll('.nav-item:not(#change-password-nav)').forEach(b => b.classList.toggle('active', b.dataset.view === view));
       document.querySelectorAll('.view').forEach(v => v.hidden = true);
       document.getElementById('view-title').textContent = titles[view];
       document.getElementById(`view-${view}`).hidden = false;
@@ -1626,8 +1533,7 @@
 
     function updateOverdueBadge(count) {
       const badge = document.getElementById('overdue-badge');
-      if (count > 0) { badge.hidden = false;
-        badge.textContent = count; } else { badge.hidden = true; }
+      if (count > 0) { badge.hidden = false; badge.textContent = count; } else { badge.hidden = true; }
     }
 
     // ========== DASHBOARD ==========
@@ -1638,8 +1544,7 @@
       try {
         const customers = await db.getAll('customers');
         const plans = await db.getAll('plans');
-        const installments = await db.getAll('installments');
-        const paymentLog = await db.getAll('payment_log');
+        const totalCostPaid = round2(plans.reduce((s, p) => s + (p.cost_price || 0), 0));
         const today = todayStr();
 
         const sevenDaysLater = new Date();
@@ -1651,18 +1556,15 @@
         let overdueAmount = 0;
         let dueSoonCount = 0;
         let dueSoonAmount = 0;
-        let totalCashPurchases = 0;
         const currentMonth = today.substring(0, 7);
         const upcoming = [];
 
-        plans.forEach(p => {
-          totalCashPurchases += p.total_amount || 0;
-        });
-
+        // دفعت نقدًا الشهر ده = مجموع كل الدفعات (كاملة أو جزئية) اللي حصلت الشهر ده فعليًا
         const collectedThisMonth = round2(
           paymentLog.filter(p => (p.date || '').startsWith(currentMonth)).reduce((s, p) => s + p.amount, 0)
         );
 
+        // تقفيل الشهر: الأقساط المفروض تتحصل الشهر ده (بغض النظر عن حالتها)
         const dueThisMonthInsts = installments.filter(i => (i.due_date || '').startsWith(currentMonth));
         const dueThisMonthTotal = round2(dueThisMonthInsts.reduce((s, i) => s + i.amount, 0));
         const collectedFromDueThisMonth = round2(dueThisMonthInsts.reduce((s, i) => s + (i.amount_paid || 0), 0));
@@ -1705,10 +1607,10 @@
               <div class="kpi-label">خطط نشطة</div>
               <div class="kpi-value num primary">${plans.length}</div>
             </div>
-            <div class="kpi-card" style="background:#FFF8E7; border-color:var(--amber);">
-              <div class="kpi-label">💰 المشتريات نقداً</div>
-              <div class="kpi-value num amber">${fmt(totalCashPurchases)}</div>
-              <div class="kpi-sub">إجمالي قيمة المنتجات</div>
+            <div class="kpi-card">
+              <div class="kpi-label">إجمالي المستحق</div>
+              <div class="kpi-value num">${fmt(totalOutstanding)}</div>
+              <div class="kpi-sub">جنيه</div>
             </div>
             <div class="kpi-card">
               <div class="kpi-label">أقساط متأخرة</div>
@@ -1727,6 +1629,11 @@
               <div class="kpi-value num primary">${fmt(collectedThisMonth)}</div>
               <div class="kpi-sub">جنيه</div>
             </div>
+          </div>
+
+          <div class="kpi-card" style="margin-bottom:20px;">
+            <div class="kpi-label">💵 إجمالي رأس المال المدفوع (كاش اشتريت بيه البضاعة)</div>
+            <div class="kpi-value num" style="color:var(--text);">${fmt(totalCostPaid)} <span style="font-size:14px; font-weight:600; color:var(--text-muted);">ج.م</span></div>
           </div>
 
           <div class="panel">
@@ -1847,9 +1754,7 @@
       const allInsts = await db.getAll('installments');
       const today = todayStr();
 
-      let totalPaid = 0,
-        totalRemaining = 0,
-        overdueTotal = 0;
+      let totalPaid = 0, totalRemaining = 0, overdueTotal = 0;
 
       const plansWithInsts = custPlans.map(p => {
         const pInsts = allInsts.filter(i => i.plan_id == p.id).sort((a, b) => a.seq - b.seq);
@@ -1940,7 +1845,7 @@
       `);
     }
 
-    // ========== DELETE CUSTOMER ==========
+    // ========== DELETE CUSTOMER WITH CONFIRMATION ==========
     async function deleteCustomer(id) {
       const customer = await db.getById('customers', id);
       if (!customer) return;
@@ -1970,6 +1875,8 @@
       }
     }
 
+    // (payment recording is now handled centrally by openPayModal / unpayInstallmentGeneric)
+
     function openCustomerForm() {
       openModal(`
         <h2>عميل جديد</h2>
@@ -1988,8 +1895,7 @@
       `);
       document.getElementById('save-customer-btn').addEventListener('click', async () => {
         const name = document.getElementById('c-name').value.trim();
-        if (!name) { document.getElementById('form-error').innerHTML =
-          `<div class="form-error">اسم العميل مطلوب</div>`; return; }
+        if (!name) { document.getElementById('form-error').innerHTML = `<div class="form-error">اسم العميل مطلوب</div>`; return; }
         try {
           await db.add('customers', {
             name,
@@ -2054,9 +1960,7 @@
 
     async function openPlanForm(customerId) {
       const customers = await db.getAll('customers');
-      const options = customers.map(c =>
-        `<option value="${c.id}" ${c.id == customerId ? 'selected' : ''}>${c.name} (${c.phone || 'بدون رقم'})</option>`
-        ).join('');
+      const options = customers.map(c => `<option value="${c.id}" ${c.id == customerId ? 'selected' : ''}>${c.name} (${c.phone || 'بدون رقم'})</option>`).join('');
       openModal(`
         <h2>خطة تقسيط جديدة</h2>
         <div id="form-error"></div>
@@ -2073,6 +1977,11 @@
         <div class="form-row">
           <div class="form-group"><label>نسبة الفايدة (%)</label><input id="p-profit" type="number" min="0" step="0.1" placeholder="مثال: 35"></div>
           <div class="form-group"><label>تاريخ بداية الخطة *</label><input id="p-start" type="date" value="${todayStr()}"></div>
+        </div>
+        <div class="form-group">
+          <label>التكلفة اللي دفعتها كاش (سعر شرائك للمنتج)</label>
+          <input id="p-cost" type="number" min="0" placeholder="مثال: 3500">
+          <div class="form-hint">اختياري - يساعدك تتابع إجمالي رأس المال اللي دفعته لشراء البضاعة</div>
         </div>
         <div class="summary-box" id="p-preview" style="margin-bottom:14px;"></div>
         <div class="modal-close-row">
@@ -2114,6 +2023,7 @@
         const profitInputVal = document.getElementById('p-profit').value;
         const profit_rate = (profitInputVal === '' ? 35 : Number(profitInputVal) || 0) / 100;
         const start_date = document.getElementById('p-start').value;
+        const cost_price = Number(document.getElementById('p-cost').value) || 0;
 
         if (!customer_id || !product_name || !total_amount || !num_installments || !start_date) {
           errBox.innerHTML = `<div class="form-error">من فضلك أكمل كل الحقول المطلوبة</div>`;
@@ -2130,6 +2040,7 @@
             product_name,
             total_amount,
             down_payment,
+            cost_price,
             num_installments,
             frequency_days,
             profit_rate,
@@ -2161,8 +2072,7 @@
 
           closeModal();
           showToast('تم إنشاء خطة التقسيط');
-          if (state.view === 'plans') loadPlans();
-          else if (state.view === 'dashboard') loadDashboard();
+          if (state.view === 'plans') loadPlans(); else if (state.view === 'dashboard') loadDashboard();
         } catch (err) {
           errBox.innerHTML = `<div class="form-error">${err.message || err}</div>`;
         }
@@ -2207,7 +2117,11 @@
       `);
     }
 
-    // ==================== NOTIFICATIONS ====================
+    function round2(n) { return Math.round(n * 100) / 100; }
+
+    // ==================== LOCAL NOTIFICATIONS (تنبيه ميعاد القسط) ====================
+    // شغالة بس لما التطبيق يبقى مثبت فعليًا كتطبيق أندرويد (مش وهو بيتفتح
+    // كصفحة عادية في المتصفح للمعاينة) - عشان محتاجة الجسر الأصلي بتاع الموبايل
     function hasNotifications() {
       return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications);
     }
@@ -2216,14 +2130,14 @@
       if (!hasNotifications()) return;
       try {
         await window.Capacitor.Plugins.LocalNotifications.requestPermissions();
-      } catch (e) { /* تجاهل */ }
+      } catch (e) { /* تجاهل لو المستخدم رفض */ }
     }
 
     async function scheduleInstallmentReminder(inst, customerName, productName) {
       if (!hasNotifications()) return;
       try {
         const dueDate = new Date(inst.due_date + 'T09:00:00');
-        if (dueDate.getTime() < Date.now()) return;
+        if (dueDate.getTime() < Date.now()) return; // متأخر فعلًا، مفيش داعي لتنبيه
         await window.Capacitor.Plugins.LocalNotifications.schedule({
           notifications: [{
             id: Number(inst.id),
@@ -2232,7 +2146,7 @@
             schedule: { at: dueDate }
           }]
         });
-      } catch (e) { /* تجاهل */ }
+      } catch (e) { /* تجاهل أي خطأ جدولة، مش حرج لعمل التطبيق */ }
     }
 
     async function cancelInstallmentReminder(instId) {
@@ -2253,6 +2167,8 @@
       } catch (e) {}
     }
 
+    // بيتنفذ مرة عند أول تسجيل دخول ناجح - يظبط تنبيهات كل الأقساط
+    // اللي لسه مستحقة (تغطية أي بيانات موجودة من قبل ما الميزة دي تتضاف)
     async function syncAllReminders() {
       if (!hasNotifications()) return;
       try {
@@ -2272,14 +2188,12 @@
       const remaining = round2(i.amount - (i.amount_paid || 0));
       if (i.paid) {
         if (i.carried_forward) {
-          return { pill: `<span class="pill pill-muted">مرحّل</span>`,
-          note: `تم ترحيل ${fmt(i.carried_amount)} ج.م منه للقسط الجاي` };
+          return { pill: `<span class="pill pill-muted">مرحّل</span>`, note: `تم ترحيل ${fmt(i.carried_amount)} ج.م منه للقسط الجاي` };
         }
         return { pill: `<span class="pill pill-ok">مدفوع</span>`, note: null };
       }
       if (i.amount_paid > 0) {
-        return { pill: `<span class="pill pill-warn">دفع جزئي</span>`,
-          note: `دفع ${fmt(i.amount_paid)} من ${fmt(i.amount)} · متبقي ${fmt(remaining)} ج.م` };
+        return { pill: `<span class="pill pill-warn">دفع جزئي</span>`, note: `دفع ${fmt(i.amount_paid)} من ${fmt(i.amount)} · متبقي ${fmt(remaining)} ج.م` };
       }
       if (i.due_date < today) {
         return { pill: `<span class="pill pill-danger">متأخر</span>`, note: null };
@@ -2385,17 +2299,9 @@
       scheduleReminderForInstallmentId(nextInst.id);
     }
 
-    // ===== unpayInstallmentGeneric - بتمسح من payment_log =====
     async function unpayInstallmentGeneric(instId, contextType, contextId) {
       try {
         const inst = await db.getById('installments', instId);
-
-        const allLogs = await db.getAll('payment_log');
-        const logsToDelete = allLogs.filter(log => log.installment_id === instId);
-        for (let log of logsToDelete) {
-          await db.delete('payment_log', log.id);
-        }
-
         if (inst.carried_forward) {
           const all = await db.getAll('installments');
           const nextInst = all.find(x => x.plan_id === inst.plan_id && x.seq === inst.seq + 1);
@@ -2411,6 +2317,15 @@
         inst.carried_forward = false;
         inst.carried_amount = 0;
         await db.update('installments', inst);
+
+        // نشيل كل سجلات الدفع الخاصة بالقسط ده عشان "تحصيل الشهر الحالي"
+        // يترجع ينقص صح بدل ما يفضل المبلغ متراكم غلط
+        const allPaymentLogs = await db.getAll('payment_log');
+        const logsToRemove = allPaymentLogs.filter(p => p.installment_id === instId);
+        for (const log of logsToRemove) {
+          await db.delete('payment_log', log.id);
+        }
+
         scheduleReminderForInstallmentId(instId);
         showToast('تم التراجع عن الدفع');
         await refreshAfterPayment(contextType, contextId);
@@ -2570,8 +2485,7 @@
         })).filter(m => m.name);
 
         if (!name || !monthly_amount || !start_date || membersInputs.length < 2) {
-          errBox.innerHTML =
-            `<div class="form-error">من فضلك أكمل اسم الجمعية والمبلغ والتاريخ، وأضف عضوين على الأقل بالاسم</div>`;
+          errBox.innerHTML = `<div class="form-error">من فضلك أكمل اسم الجمعية والمبلغ والتاريخ، وأضف عضوين على الأقل بالاسم</div>`;
           return;
         }
 
@@ -2644,9 +2558,7 @@
       const cPayouts = allPayouts.filter(p => p.circle_id == id).sort((a, b) => a.turn_order - b.turn_order);
       const today = todayStr();
 
-      const memberCols = cMembers.map(m =>
-        `<th><span class="turn-badge">${m.turn_order}</span><br>${m.customer_name}</th>`
-        ).join('');
+      const memberCols = cMembers.map(m => `<th><span class="turn-badge">${m.turn_order}</span><br>${m.customer_name}</th>`).join('');
 
       const rounds = [...new Set(cPayments.map(p => p.round_number))].sort((a, b) => a - b);
       const paymentRows = rounds.map(round => {
@@ -2744,312 +2656,95 @@
       }
     }
 
-    // ============================================================
-    // ========== BACKUP & RESTORE (Excel مع مشاركة) ==========
-    // ============================================================
-
-    // ===== 1. تصدير Excel مع مشاركة =====
+    // ========== BACKUP & RESTORE ==========
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
-        showToast('⏳ جاري تجهيز ملف Excel...');
+        const data = {
+          customers: await db.getAll('customers'),
+          plans: await db.getAll('plans'),
+          installments: await db.getAll('installments'),
+          circles: await db.getAll('circles'),
+          circle_members: await db.getAll('circle_members'),
+          circle_payments: await db.getAll('circle_payments'),
+          circle_payouts: await db.getAll('circle_payouts'),
+          payment_log: await db.getAll('payment_log'),
+          exported_at: new Date().toISOString()
+        };
+        const jsonStr = JSON.stringify(data, null, 2);
+        const fileName = `Mido_App_Backup_${todayStr()}.json`;
 
-        const customers = await db.getAll('customers');
-        const plans = await db.getAll('plans');
-        const installments = await db.getAll('installments');
-        const paymentLog = await db.getAll('payment_log');
-        const circles = await db.getAll('circles');
-        const circleMembers = await db.getAll('circle_members');
-        const circlePayments = await db.getAll('circle_payments');
-        const circlePayouts = await db.getAll('circle_payouts');
-
-        const wb = XLSX.utils.book_new();
-
-        // ===== إنشاء الأوراق =====
-        // العملاء
-        const customersData = customers.map(c => ({
-          'ID': c.id,
-          'الاسم': c.name,
-          'الموبايل': c.phone || '',
-          'الرقم القومي': c.national_id || '',
-          'العنوان': c.address || '',
-          'ملاحظات': c.notes || '',
-          'تاريخ الإنشاء': c.created_at || ''
-        }));
-        const wsCustomers = XLSX.utils.json_to_sheet(customersData);
-        XLSX.utils.book_append_sheet(wb, wsCustomers, 'العملاء');
-
-        // الخطط
-        const plansData = plans.map(p => {
-          const cust = customers.find(c => c.id === p.customer_id);
-          return {
-            'ID': p.id,
-            'العميل': cust?.name || '',
-            'المنتج': p.product_name || '',
-            'السعر نقداً': p.total_amount || 0,
-            'المقدم': p.down_payment || 0,
-            'عدد الأقساط': p.num_installments || 0,
-            'نسبة الفائدة': p.profit_rate ? (p.profit_rate * 100) + '%' : '0%',
-            'الإجمالي payable': p.total_payable || 0,
-            'تاريخ البدء': p.start_date || ''
-          };
-        });
-        const wsPlans = XLSX.utils.json_to_sheet(plansData);
-        XLSX.utils.book_append_sheet(wb, wsPlans, 'الخطط');
-
-        // الأقساط
-        const installmentsData = installments.map(i => {
-          const plan = plans.find(p => p.id === i.plan_id);
-          const cust = plan ? customers.find(c => c.id === plan.customer_id) : null;
-          return {
-            'ID': i.id,
-            'العميل': cust?.name || 'غير معروف',
-            'المنتج': plan?.product_name || '',
-            'رقم القسط': i.seq || 0,
-            'قيمة القسط': i.amount || 0,
-            'المدفوع': i.amount_paid || 0,
-            'المتبقي': (i.amount || 0) - (i.amount_paid || 0),
-            'تاريخ الاستحقاق': i.due_date || '',
-            'مدفوع؟': i.paid ? 'نعم' : 'لا',
-            'تاريخ الدفع': i.paid_date || '',
-            'مرحل؟': i.carried_forward ? 'نعم' : 'لا'
-          };
-        });
-        const wsInstallments = XLSX.utils.json_to_sheet(installmentsData);
-        XLSX.utils.book_append_sheet(wb, wsInstallments, 'الأقساط');
-
-        // سجل الدفعات
-        const paymentData = paymentLog.map(p => ({
-          'ID': p.id,
-          'القسط ID': p.installment_id || '',
-          'المبلغ': p.amount || 0,
-          'التاريخ': p.date || ''
-        }));
-        const wsPayments = XLSX.utils.json_to_sheet(paymentData);
-        XLSX.utils.book_append_sheet(wb, wsPayments, 'سجل_الدفعات');
-
-        // الجمعيات
-        const circlesData = circles.map(c => ({
-          'ID': c.id,
-          'اسم الجمعية': c.name || '',
-          'المبلغ الشهري': c.monthly_amount || 0,
-          'عدد الأعضاء': circleMembers.filter(m => m.circle_id === c.id).length || 0,
-          'تاريخ البدء': c.start_date || ''
-        }));
-        const wsCircles = XLSX.utils.json_to_sheet(circlesData);
-        XLSX.utils.book_append_sheet(wb, wsCircles, 'الجمعيات');
-
-        // أعضاء الجمعيات
-        const membersData = circleMembers.map(m => ({
-          'ID': m.id,
-          'الجمعية ID': m.circle_id || '',
-          'اسم العضو': m.customer_name || '',
-          'الموبايل': m.phone || '',
-          'ترتيب الدور': m.turn_order || 0
-        }));
-        const wsMembers = XLSX.utils.json_to_sheet(membersData);
-        XLSX.utils.book_append_sheet(wb, wsMembers, 'أعضاء_الجمعيات');
-
-        // دفعات الجمعيات
-        const cpData = circlePayments.map(p => ({
-          'ID': p.id,
-          'الجمعية ID': p.circle_id || '',
-          'العضو ID': p.member_id || '',
-          'رقم الدورة': p.round_number || 0,
-          'تاريخ الاستحقاق': p.due_date || '',
-          'مدفوع؟': p.paid ? 'نعم' : 'لا'
-        }));
-        const wsCP = XLSX.utils.json_to_sheet(cpData);
-        XLSX.utils.book_append_sheet(wb, wsCP, 'دفعات_الجمعيات');
-
-        // صرف الجمعيات
-        const poData = circlePayouts.map(p => ({
-          'ID': p.id,
-          'الجمعية ID': p.circle_id || '',
-          'اسم العضو': p.customer_name || '',
-          'رقم الدور': p.turn_order || 0,
-          'المبلغ': p.amount || 0,
-          'تاريخ الاستحقاق': p.due_date || '',
-          'تم الصرف؟': p.paid_out ? 'نعم' : 'لا'
-        }));
-        const wsPO = XLSX.utils.json_to_sheet(poData);
-        XLSX.utils.book_append_sheet(wb, wsPO, 'صرف_الجمعيات');
-
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const fileName = `Mido_App_Backup_${todayStr()}.xlsx`;
-
-        // ===== استخدام Share API (المشاركة) =====
-        if (navigator.share) {
-          try {
-            const file = new File([wbout], fileName, {
-              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+          // جوه تطبيق أندرويد الحقيقي: نكتب الملف فعليًا ونفتح شاشة "مشاركة"
+          // عشان تختار انت فين تحفظه (درايف / واتساب / ملفات الجهاز)
+          const { Filesystem, Directory } = window.Capacitor.Plugins;
+          const write = await Filesystem.writeFile({
+            path: fileName,
+            data: jsonStr,
+            directory: Directory.Cache,
+            encoding: 'utf8'
+          });
+          if (window.Capacitor.Plugins.Share) {
+            await window.Capacitor.Plugins.Share.share({
+              title: 'نسخة احتياطية من Mido',
+              text: 'نسخة احتياطية من بيانات التطبيق - احفظها في مكان آمن',
+              url: write.uri
             });
-            await navigator.share({
-              files: [file],
-              title: '📊 نسخة احتياطية Mido',
-              text: '📊 ملف النسخة الاحتياطية لتطبيق Mido'
-            });
-            showToast('✅ تم إرسال الملف بنجاح');
-            return;
-          } catch (e) {
-            if (e.name === 'AbortError') {
-              showToast('❌ تم إلغاء المشاركة');
-              return;
-            }
-            // لو فشلت المشاركة، نستخدم الطريقة البديلة
+            showToast('اختار مكان الحفظ من شاشة المشاركة');
+          } else {
+            showToast('تم حفظ الملف: ' + fileName);
           }
-        }
-
-        // ===== الطريقة البديلة: فتح الملف في نافذة جديدة =====
-        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-
-        // فتح الملف في نافذة جديدة
-        const newWindow = window.open(url, '_blank');
-
-        if (!newWindow) {
-          // لو المنع مانع الفتح، نستخدم التحميل
+        } else {
+          // معاينة في متصفح عادي على الكمبيوتر: طريقة التنزيل القديمة تشتغل عادي
+          const blob = new Blob([jsonStr], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
           a.download = fileName;
-          a.style.display = 'none';
-          document.body.appendChild(a);
           a.click();
-          document.body.removeChild(a);
-          showToast('✅ تم التحميل، افتح مجلد التنزيلات');
-        } else {
-          showToast('✅ تم فتح الملف، احفظه من المتصفح');
+          URL.revokeObjectURL(url);
+          showToast('تم تصدير النسخة الاحتياطية بنجاح');
         }
-
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
-
       } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
+        showToast('خطأ أثناء التصدير: ' + err.message);
       }
     });
 
-    // ===== 2. استرجاع من Excel =====
     document.getElementById('restore-btn').addEventListener('click', () => {
       document.getElementById('import-file').click();
     });
 
-    document.getElementById('import-file').addEventListener('change', async (e) => {
+    document.getElementById('import-file').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (!data.customers || !data.plans) throw new Error('الملف غير صالح');
+          if (!confirm('استرجاع البيانات سيمحو البيانات الحالية ويستبدلها بالنسخة. هل أنت متأكد؟')) return;
 
-      try {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data, { type: 'array' });
+          await db.clearAll();
 
-        const requiredSheets = ['العملاء', 'الخطط', 'الأقساط'];
-        const missing = requiredSheets.filter(s => !workbook.SheetNames.includes(s));
-        if (missing.length > 0) {
-          alert(`❌ الملف غير صالح! الأوراق المفقودة: ${missing.join(', ')}`);
-          return;
+          for (let c of data.customers || []) await db.add('customers', c);
+          for (let p of data.plans || []) await db.add('plans', p);
+          for (let i of data.installments || []) await db.add('installments', i);
+          for (let cr of data.circles || []) await db.add('circles', cr);
+          for (let cm of data.circle_members || []) await db.add('circle_members', cm);
+          for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
+          for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
+          for (let pl of data.payment_log || []) await db.add('payment_log', pl);
+
+          showToast('تم استرجاع البيانات بنجاح!');
+          switchView(state.view);
+        } catch (err) {
+          alert('فشل استرجاع الملف: ' + err.message);
         }
-
-        if (!confirm('⚠️ استرجاع البيانات من Excel سيمحو البيانات الحالية ويستبدلها. هل أنت متأكد؟')) return;
-
-        showToast('⏳ جاري استرجاع البيانات...');
-
-        await db.clearAll();
-
-        // قراءة العملاء
-        const customersSheet = XLSX.utils.sheet_to_json(workbook.Sheets['العملاء']);
-        const customerMap = {};
-        for (const row of customersSheet) {
-          const id = await db.add('customers', {
-            name: row['الاسم'] || '',
-            phone: row['الموبايل'] || '',
-            national_id: row['الرقم القومي'] || '',
-            address: row['العنوان'] || '',
-            notes: row['ملاحظات'] || '',
-            created_at: row['تاريخ الإنشاء'] || ''
-          });
-          customerMap[row['ID']] = id;
-        }
-
-        // قراءة الخطط
-        const plansSheet = XLSX.utils.sheet_to_json(workbook.Sheets['الخطط']);
-        const planMap = {};
-        for (const row of plansSheet) {
-          const custName = row['العميل'] || '';
-          let custId = null;
-          for (const [oldId, newId] of Object.entries(customerMap)) {
-            const cust = await db.getById('customers', newId);
-            if (cust && cust.name === custName) { custId = newId; break; }
-          }
-          if (!custId) {
-            custId = await db.add('customers', { name: custName || 'عميل غير معروف', created_at: todayStr() });
-          }
-          const id = await db.add('plans', {
-            customer_id: custId,
-            product_name: row['المنتج'] || '',
-            total_amount: Number(row['السعر نقداً']) || 0,
-            down_payment: Number(row['المقدم']) || 0,
-            num_installments: Number(row['عدد الأقساط']) || 0,
-            profit_rate: Number(String(row['نسبة الفائدة'] || '0%').replace('%', '')) / 100 || 0,
-            total_payable: Number(row['الإجمالي payable']) || 0,
-            start_date: row['تاريخ البدء'] || ''
-          });
-          planMap[row['ID']] = id;
-        }
-
-        // قراءة الأقساط
-        const instSheet = XLSX.utils.sheet_to_json(workbook.Sheets['الأقساط']);
-        for (const row of instSheet) {
-          const planId = planMap[row['الخطة ID']] || 1;
-          await db.add('installments', {
-            plan_id: planId,
-            seq: Number(row['رقم القسط']) || 0,
-            amount: Number(row['قيمة القسط']) || 0,
-            amount_paid: Number(row['المدفوع']) || 0,
-            due_date: row['تاريخ الاستحقاق'] || '',
-            paid: row['مدفوع؟'] === 'نعم',
-            paid_date: row['تاريخ الدفع'] || '',
-            carried_forward: row['مرحل؟'] === 'نعم',
-            carried_amount: 0
-          });
-        }
-
-        // قراءة سجل الدفعات لو موجود
-        if (workbook.SheetNames.includes('سجل_الدفعات')) {
-          const paySheet = XLSX.utils.sheet_to_json(workbook.Sheets['سجل_الدفعات']);
-          for (const row of paySheet) {
-            await db.add('payment_log', {
-              installment_id: Number(row['القسط ID']) || 0,
-              amount: Number(row['المبلغ']) || 0,
-              date: row['التاريخ'] || ''
-            });
-          }
-        }
-
-        // قراءة الجمعيات لو موجودة
-        if (workbook.SheetNames.includes('الجمعيات')) {
-          const circSheet = XLSX.utils.sheet_to_json(workbook.Sheets['الجمعيات']);
-          for (const row of circSheet) {
-            await db.add('circles', {
-              name: row['اسم الجمعية'] || '',
-              monthly_amount: Number(row['المبلغ الشهري']) || 0,
-              start_date: row['تاريخ البدء'] || ''
-            });
-          }
-        }
-
-        showToast('✅ تم استرجاع البيانات بنجاح من Excel!');
-        switchView(state.view);
-
-      } catch (err) {
-        alert('❌ فشل استرجاع الملف: ' + err.message);
-      }
+      };
+      reader.readAsText(file);
     });
 
     // ========== INIT ==========
-    document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     checkActivation();
     if (sessionStorage.getItem('mido_admin_logged') === 'true') {
       loadDashboard();
