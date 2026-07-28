@@ -1506,9 +1506,9 @@
           return i.due_date < today;
         });
 
-        // الأقساط المدفوعة جزئياً
+        // الأقساط المدفوعة جزئياً (اللي فيها رصيد معلق)
         const partial = installments.filter(i => {
-          return i.paid === false && i.paid_amount && i.paid_amount > 0;
+          return i.paid === false && i.remaining_balance && i.remaining_balance > 0;
         });
 
         // إشعارات الأقساط المستحقة
@@ -1533,14 +1533,14 @@
           );
         }
 
-        // إشعار الدفعات الجزئية
+        // إشعار الدفعات الجزئية (الرصيد المعلق)
         if (partial.length > 0) {
-          let msg = '📊 دفعات جزئية معلقة:\n';
+          let msg = '📊 رصيد معلق:\n';
           for (let inst of partial.slice(0, 3)) {
             const plan = plans.find(p => p.id === inst.plan_id);
             const cust = customers.find(c => c.id === plan?.customer_id);
             if (cust) {
-              msg += `• ${cust.name}: دفع ${fmt(inst.paid_amount)} من ${fmt(inst.amount)} ج.م\n`;
+              msg += `• ${cust.name}: متبقي ${fmt(inst.remaining_balance)} ج.م\n`;
             }
           }
           if (partial.length > 3) msg += `و ${partial.length - 3} أخرى...`;
@@ -1662,27 +1662,11 @@
           req.onerror = () => reject('خطأ أثناء الحذف');
         });
       }
-      // ===== دالة clearAll (لحذف كل البيانات) =====
+
       // ===== دالة clearAll (لمسح كل البيانات) =====
       async clearAll() {
         const db = await this.open();
         const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments', 'circle_payouts'];
-        const tx = db.transaction(stores, 'readwrite');
-        for (let s of stores) {
-          tx.objectStore(s).clear();
-        }
-        return new Promise((resolve, reject) => {
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject('فشل مسح البيانات');
-        });
-      }
-
-      // ===== دالة clearAll (اللي كانت ناقصة) =====
-      async clearAll() {
-        const db = await this.open();
-        const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments',
-          'circle_payouts'
-        ];
         const tx = db.transaction(stores, 'readwrite');
         for (let s of stores) {
           tx.objectStore(s).clear();
@@ -2031,7 +2015,7 @@
     }
 
     // ========================================================================
-    // ==================== PARTIAL PAYMENT PROCESSING ======================
+    // ==================== PARTIAL PAYMENT PROCESSING (المعدلة) ===========
     // ========================================================================
 
     async function processPartialPayment(instId, paidAmount, note, fromView, planId) {
@@ -2058,28 +2042,17 @@
         inst.paid_amount = (inst.paid_amount || 0) + paidAmount;
         inst.last_payment_date = todayStr();
 
-        if (remainingAfter <= 0) {
-          // دفع كامل
-          inst.paid = true;
-          inst.paid_date = todayStr();
-          inst.remaining_balance = 0;
-          await db.update('installments', inst);
-          showToast(`✅ تم تسجيل الدفع كاملاً (${fmt(paidAmount)} ج.م)`);
-          showInAppNotification(
-            `✅ ${cust?.name || 'عميل'}\nتم دفع ${fmt(paidAmount)} ج.م بالكامل\n${plan?.product_name || ''}`,
-            'success'
-          );
-        } else {
-          // دفع جزئي
-          inst.paid = false;
-          inst.remaining_balance = remainingAfter;
-          inst.has_outstanding_balance = true;
-          await db.update('installments', inst);
+        // الحالة الجديدة: القسط الحالي يتقفل ويتحول لمدفوع كاملاً
+        // والمتبقي يترحل للقسط التالي
+        inst.paid = true;
+        inst.paid_date = todayStr();
+        inst.remaining_balance = 0;
+        inst.has_outstanding_balance = false;
+        await db.update('installments', inst);
 
-          // عرض إشعار
-          showToast(`⚠️ تم دفع ${fmt(paidAmount)} ج.م، باقي ${fmt(remainingAfter)} ج.م`);
-
-          // ترحيل المتبقي للقسط التالي
+        // إذا كان فيه متبقي
+        if (remainingAfter > 0) {
+          // البحث عن القسط التالي غير المدفوع
           const allInsts = await db.getAll('installments');
           const nextInst = allInsts
             .filter(i => i.plan_id === inst.plan_id && i.seq > inst.seq && !i.paid)
@@ -2087,27 +2060,39 @@
 
           if (nextInst) {
             // إضافة المتبقي للقسط التالي
-            const originalNextAmount = nextInst.original_amount || nextInst.amount;
-            nextInst.original_amount = originalNextAmount;
             nextInst.amount = nextInst.amount + remainingAfter;
             nextInst.has_deferred = true;
             nextInst.deferred_from = inst.seq;
             nextInst.deferred_amount = remainingAfter;
             await db.update('installments', nextInst);
 
+            showToast(`✅ تم دفع ${fmt(paidAmount)} ج.م، وترحيل ${fmt(remainingAfter)} ج.م للقسط ${nextInst.seq}`);
             showInAppNotification(
-              `🔄 ${cust?.name || 'عميل'}\nتم ترحيل ${fmt(remainingAfter)} ج.م للقسط ${nextInst.seq}`,
+              `🔄 ${cust?.name || 'عميل'}\nتم دفع ${fmt(paidAmount)} ج.م\nتم ترحيل ${fmt(remainingAfter)} ج.م للقسط ${nextInst.seq}`,
               'warning',
               8000
             );
           } else {
-            // مفيش قسط تالي، يفضل رصيد معلق
+            // مفيش قسط تالي - يفضل رصيد معلق للعميل
+            inst.paid = false; // نرجعها غير مدفوع لأن فيه رصيد معلق
+            inst.remaining_balance = remainingAfter;
+            inst.has_outstanding_balance = true;
+            await db.update('installments', inst);
+
+            showToast(`⚠️ تم دفع ${fmt(paidAmount)} ج.م، باقي ${fmt(remainingAfter)} ج.م رصيد معلق`);
             showInAppNotification(
-              `⚠️ ${cust?.name || 'عميل'}\nمتبقي ${fmt(remainingAfter)} ج.م كرصيد معلق\nسيتم إضافته للقسط القادم`,
+              `⚠️ ${cust?.name || 'عميل'}\nمتبقي ${fmt(remainingAfter)} ج.م كرصيد معلق`,
               'warning',
               8000
             );
           }
+        } else {
+          // دفع كامل بدون متبقي
+          showToast(`✅ تم تسجيل الدفع كاملاً (${fmt(paidAmount)} ج.م)`);
+          showInAppNotification(
+            `✅ ${cust?.name || 'عميل'}\nتم دفع ${fmt(paidAmount)} ج.م بالكامل\n${plan?.product_name || ''}`,
+            'success'
+          );
         }
 
         // إغلاق المودال وتحديث العرض
@@ -2239,7 +2224,7 @@
 
       const plansHtml = plansWithInsts.length ? plansWithInsts.map(p => {
         const paidCount = p.installments.filter(i => i.paid).length;
-        const partialCount = p.installments.filter(i => !i.paid && i.paid_amount && i.paid_amount > 0).length;
+        const partialCount = p.installments.filter(i => !i.paid && i.remaining_balance && i.remaining_balance > 0).length;
         const planPaid = p.installments.filter(i => i.paid).reduce((s, i) => s + (i.paid_amount || i.amount), 0);
         const planPartial = p.installments.filter(i => !i.paid && i.paid_amount).reduce((s, i) => s + (i.paid_amount || 0),
           0);
@@ -2249,38 +2234,82 @@
           let cls = 'inst-seg';
           if (i.paid) cls += ' paid';
           else if (i.due_date < today) cls += ' overdue';
-          else if (i.paid_amount && i.paid_amount > 0) cls += ' partial';
+          else if (i.remaining_balance && i.remaining_balance > 0) cls += ' partial';
           return `<div class="${cls}"></div>`;
         }).join('');
 
         const rows = p.installments.map(i => {
           const paidAmt = i.paid_amount || 0;
-          const isPartial = !i.paid && paidAmt > 0;
-          const remaining = i.amount - paidAmt;
-          const hasDeferred = i.has_deferred && i.deferred_amount;
+          const hasDeferred = i.has_deferred && i.deferred_amount > 0;
+          const isDeferredFrom = i.deferred_from;
+          const hasRemaining = i.remaining_balance && i.remaining_balance > 0;
+
+          // تحديد حالة القسط
+          let statusText = '';
+          let statusClass = '';
+
+          if (i.paid) {
+            if (hasDeferred) {
+              statusText = `✅ مدفوع (مرحل ${fmt(i.deferred_amount)})`;
+              statusClass = 'pill-ok';
+            } else if (isDeferredFrom) {
+              statusText = `✅ مدفوع (مرحل من قسط ${isDeferredFrom})`;
+              statusClass = 'pill-ok';
+            } else {
+              statusText = '✅ مدفوع';
+              statusClass = 'pill-ok';
+            }
+          } else if (hasRemaining) {
+            statusText = '🟡 رصيد معلق';
+            statusClass = 'pill-partial';
+          } else if (i.due_date < today) {
+            statusText = 'متأخر';
+            statusClass = 'pill-danger';
+          } else {
+            statusText = 'مستحق';
+            statusClass = 'pill-muted';
+          }
+
+          // بناء النص الفرعي
+          let subText = `استحقاق ${i.due_date}`;
+          if (i.paid) {
+            subText += ` · ✅ دُفع كاملاً`;
+            if (i.paid_date) subText += ` في ${i.paid_date}`;
+            if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
+            if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
+          } else {
+            if (hasRemaining) subText += ` · ⚠️ متبقي ${fmt(i.remaining_balance)}`;
+            if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
+            if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
+          }
+
+          // المبلغ المعروض
+          let displayAmount = '';
+          if (i.paid) {
+            displayAmount = fmt(i.paid_amount || i.amount);
+          } else {
+            displayAmount = fmt(i.amount);
+          }
+
+          // عنوان القسط
+          let titleText = `قسط ${i.seq}`;
+          if (hasDeferred) titleText += ` 🔄 (مرحل)`;
+          if (isDeferredFrom) titleText += ` 📌 (مرحل من قسط ${isDeferredFrom})`;
+          if (hasRemaining) titleText += ` ⚠️ (رصيد معلق)`;
 
           return `
-          <div class="row-item">
-            <div class="row-main">
-              <div class="row-title">قسط ${i.seq} ${hasDeferred ? '🔄 (مرحل)' : ''}</div>
-              <div class="row-sub">
-                استحقاق ${i.due_date}
-                ${i.paid ? ' · ✅ دُفع كاملاً' : ''}
-                ${isPartial ? ` · 🟡 دفع ${fmt(paidAmt)} من ${fmt(i.amount)}` : ''}
-                ${hasDeferred ? ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}` : ''}
-                ${i.paid_date ? ' · دُفع في ' + i.paid_date : ''}
-                ${i.remaining_balance > 0 ? ` · متبقي ${fmt(i.remaining_balance)}` : ''}
+            <div class="row-item">
+              <div class="row-main">
+                <div class="row-title">${titleText}</div>
+                <div class="row-sub">${subText}</div>
               </div>
-            </div>
-            <span class="pill ${i.paid ? 'pill-ok' : (isPartial ? 'pill-partial' : (i.due_date < today ? 'pill-danger' : 'pill-muted'))}">
-              ${i.paid ? '✅ مدفوع' : (isPartial ? '🟡 جزئي' : (i.due_date < today ? 'متأخر' : 'مستحق'))}
-            </span>
-            <div class="row-amount num">${i.paid ? fmt(i.paid_amount || i.amount) : fmt(remaining)} ج.م</div>
-            ${i.paid
+              <span class="pill ${statusClass}">${statusText}</span>
+              <div class="row-amount num">${displayAmount} ج.م</div>
+              ${i.paid
               ? `<button class="btn btn-outline btn-sm" onclick="unpayInstallmentFromCustomer(${i.id}, ${id})">تراجع</button>`
               : `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${i.id}, 'customer-detail', ${p.id})">تسجيل الدفع</button>`}
-          </div>
-        `;
+            </div>
+          `;
         }).join('');
 
         return `
@@ -2288,7 +2317,7 @@
             <div class="panel-header" style="padding:12px 16px;">
               <h2 style="font-size:14px;">${p.product_name}</h2>
               <span class="pill pill-muted">${paidCount}/${p.installments.length} مدفوعة
-                ${partialCount > 0 ? ` · 🟡 ${partialCount} جزئية` : ''}</span>
+                ${partialCount > 0 ? ` · 🟡 ${partialCount} رصيد معلق` : ''}</span>
             </div>
             <div style="padding:12px 16px 4px;">
               <div class="inst-track" style="margin-bottom:10px;">${segs}</div>
@@ -2379,11 +2408,38 @@
     async function unpayInstallmentFromCustomer(instId, customerId) {
       try {
         const inst = await db.getById('installments', instId);
+
+        // إذا كان القسط مدفوع ومرحل منه، نرجع المبلغ المرحل للقسط الأصلي
+        if (inst.has_deferred && inst.deferred_amount > 0 && inst.deferred_from) {
+          // البحث عن القسط المرحل إليه
+          const allInsts = await db.getAll('installments');
+          const nextInst = allInsts
+            .filter(i => i.plan_id === inst.plan_id && i.deferred_from === inst.seq)
+            .sort((a, b) => a.seq - b.seq)[0];
+
+          if (nextInst) {
+            // إزالة المبلغ المرحل من القسط التالي
+            nextInst.amount = nextInst.amount - inst.deferred_amount;
+            nextInst.has_deferred = false;
+            nextInst.deferred_from = null;
+            nextInst.deferred_amount = 0;
+            await db.update('installments', nextInst);
+          }
+        }
+
+        // إلغاء دفع القسط الحالي
         inst.paid = false;
         inst.paid_date = null;
         inst.paid_amount = 0;
         inst.remaining_balance = inst.amount;
+        inst.has_deferred = false;
+        inst.deferred_from = null;
+        inst.deferred_amount = 0;
+        inst.has_outstanding_balance = false;
+        inst.payment_history = [];
+
         await db.update('installments', inst);
+
         showToast('تم التراجع عن الدفع');
         openCustomerDetail(customerId);
         if (state.view === 'dashboard') loadDashboard();
@@ -2458,7 +2514,7 @@
           const custName = cust ? cust.name : 'عميل غير معروف';
           const pInsts = installments.filter(i => i.plan_id == p.id);
           const paidCount = pInsts.filter(i => i.paid).length;
-          const partialCount = pInsts.filter(i => !i.paid && i.paid_amount && i.paid_amount > 0).length;
+          const partialCount = pInsts.filter(i => !i.paid && i.remaining_balance && i.remaining_balance > 0).length;
           const totalCount = pInsts.length;
           const remainingAmount = pInsts.filter(i => !i.paid).reduce((s, i) => s + (i.amount - (i.paid_amount || 0)), 0);
 
@@ -2467,13 +2523,13 @@
               <div class="row-main">
                 <div class="row-title">${custName} — ${p.product_name}</div>
                 <div class="row-sub">${paidCount}/${totalCount} أقساط مدفوعة
-                  ${partialCount > 0 ? ` · 🟡 ${partialCount} جزئية` : ''}
+                  ${partialCount > 0 ? ` · 🟡 ${partialCount} رصيد معلق` : ''}
                   · بدأت ${p.start_date}</div>
                 <div class="inst-track" style="margin-top:6px; max-width:220px;">
                   ${pInsts.map(i => {
             let cls = 'inst-seg';
             if (i.paid) cls += ' paid';
-            else if (i.paid_amount && i.paid_amount > 0) cls += ' partial';
+            else if (i.remaining_balance && i.remaining_balance > 0) cls += ' partial';
             return `<div class="${cls}"></div>`;
           }).join('')}
                 </div>
@@ -2611,16 +2667,90 @@
       const pInsts = allInsts.filter(i => i.plan_id == id).sort((a, b) => a.seq - b.seq);
       const today = todayStr();
 
-      // حساب الدفعات الجزئية
-      const partials = pInsts.filter(i => !i.paid && i.paid_amount && i.paid_amount > 0);
+      // حساب الدفعات الجزئية (الرصيد المعلق)
+      const partials = pInsts.filter(i => !i.paid && i.remaining_balance && i.remaining_balance > 0);
 
       let warningNote = '';
       if (partials.length > 0) {
         warningNote =
           `<div class="form-error" style="background:var(--amber-tint); color:var(--amber); margin-bottom:12px;">
-          🟡 ملاحظة: يوجد ${partials.length} أقساط مدفوعة جزئياً
+          🟡 ملاحظة: يوجد ${partials.length} أقساط عليها رصيد معلق
         </div>`;
       }
+
+      const rows = pInsts.map(i => {
+        const paidAmt = i.paid_amount || 0;
+        const hasDeferred = i.has_deferred && i.deferred_amount > 0;
+        const isDeferredFrom = i.deferred_from;
+        const hasRemaining = i.remaining_balance && i.remaining_balance > 0;
+
+        // تحديد حالة القسط
+        let statusText = '';
+        let statusClass = '';
+
+        if (i.paid) {
+          if (hasDeferred) {
+            statusText = `✅ مدفوع (مرحل ${fmt(i.deferred_amount)})`;
+            statusClass = 'pill-ok';
+          } else if (isDeferredFrom) {
+            statusText = `✅ مدفوع (مرحل من قسط ${isDeferredFrom})`;
+            statusClass = 'pill-ok';
+          } else {
+            statusText = '✅ مدفوع';
+            statusClass = 'pill-ok';
+          }
+        } else if (hasRemaining) {
+          statusText = '🟡 رصيد معلق';
+          statusClass = 'pill-partial';
+        } else if (i.due_date < today) {
+          statusText = 'متأخر';
+          statusClass = 'pill-danger';
+        } else {
+          statusText = 'مستحق';
+          statusClass = 'pill-muted';
+        }
+
+        // بناء النص الفرعي
+        let subText = `استحقاق ${i.due_date}`;
+        if (i.paid) {
+          subText += ` · ✅ دُفع كاملاً`;
+          if (i.paid_date) subText += ` في ${i.paid_date}`;
+          if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
+          if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
+        } else {
+          if (hasRemaining) subText += ` · ⚠️ متبقي ${fmt(i.remaining_balance)}`;
+          if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
+          if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
+        }
+
+        // المبلغ المعروض
+        let displayAmount = '';
+        if (i.paid) {
+          displayAmount = fmt(i.paid_amount || i.amount);
+        } else {
+          displayAmount = fmt(i.amount);
+        }
+
+        // عنوان القسط
+        let titleText = `قسط ${i.seq}`;
+        if (hasDeferred) titleText += ` 🔄 (مرحل)`;
+        if (isDeferredFrom) titleText += ` 📌 (مرحل من قسط ${isDeferredFrom})`;
+        if (hasRemaining) titleText += ` ⚠️ (رصيد معلق)`;
+
+        return `
+          <div class="row-item">
+            <div class="row-main">
+              <div class="row-title">${titleText}</div>
+              <div class="row-sub">${subText}</div>
+            </div>
+            <span class="pill ${statusClass}">${statusText}</span>
+            <div class="row-amount num">${displayAmount} ج.م</div>
+            ${i.paid
+            ? `<button class="btn btn-outline btn-sm" onclick="unpayInstallment(${i.id}, ${id})">تراجع</button>`
+            : `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${i.id}, 'plan-detail', ${id})">تسجيل الدفع</button>`}
+          </div>
+        `;
+      }).join('');
 
       openModal(`
         <h2>${custName} — ${p.product_name}</h2>
@@ -2631,39 +2761,52 @@
         ${warningNote}
 
         <div class="row-list" style="border:1px solid var(--border); border-radius:8px; max-height:340px; overflow-y:auto;">
-          ${pInsts.map(i => {
-        const paidAmt = i.paid_amount || 0;
-        const isPartial = !i.paid && paidAmt > 0;
-        const remaining = i.amount - paidAmt;
-        const hasDeferred = i.has_deferred && i.deferred_amount;
-
-        return `
-            <div class="row-item">
-              <div class="row-main">
-                <div class="row-title">قسط ${i.seq} ${hasDeferred ? '🔄 (مرحل)' : ''}</div>
-                <div class="row-sub">
-                  استحقاق ${i.due_date}
-                  ${i.paid ? ' · ✅ دُفع كاملاً' : ''}
-                  ${isPartial ? ` · 🟡 دفع ${fmt(paidAmt)} من ${fmt(i.amount)}` : ''}
-                  ${hasDeferred ? ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}` : ''}
-                  ${i.paid_date ? ' · دُفع في ' + i.paid_date : ''}
-                </div>
-              </div>
-              <span class="pill ${i.paid ? 'pill-ok' : (isPartial ? 'pill-partial' : (i.due_date < today ? 'pill-danger' : 'pill-muted'))}">
-                ${i.paid ? '✅ مدفوع' : (isPartial ? '🟡 جزئي' : (i.due_date < today ? 'متأخر' : 'مستحق'))}
-              </span>
-              <div class="row-amount num">${i.paid ? fmt(i.paid_amount || i.amount) : fmt(remaining)} ج.م</div>
-              ${i.paid
-            ? `<button class="btn btn-outline btn-sm" onclick="unpayInstallment(${i.id}, ${id})">تراجع</button>`
-            : `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${i.id}, 'plan-detail', ${id})">تسجيل الدفع</button>`}
-            </div>
-          `;
-      }).join('')}
+          ${rows}
         </div>
         <div class="modal-close-row">
           <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
         </div>
       `);
+    }
+
+    async function unpayInstallment(instId, planId) {
+      try {
+        const inst = await db.getById('installments', instId);
+
+        // إذا كان القسط مدفوع ومرحل منه، نرجع المبلغ المرحل للقسط الأصلي
+        if (inst.has_deferred && inst.deferred_amount > 0 && inst.deferred_from) {
+          const allInsts = await db.getAll('installments');
+          const nextInst = allInsts
+            .filter(i => i.plan_id === inst.plan_id && i.deferred_from === inst.seq)
+            .sort((a, b) => a.seq - b.seq)[0];
+
+          if (nextInst) {
+            nextInst.amount = nextInst.amount - inst.deferred_amount;
+            nextInst.has_deferred = false;
+            nextInst.deferred_from = null;
+            nextInst.deferred_amount = 0;
+            await db.update('installments', nextInst);
+          }
+        }
+
+        inst.paid = false;
+        inst.paid_date = null;
+        inst.paid_amount = 0;
+        inst.remaining_balance = inst.amount;
+        inst.has_deferred = false;
+        inst.deferred_from = null;
+        inst.deferred_amount = 0;
+        inst.has_outstanding_balance = false;
+        inst.payment_history = [];
+
+        await db.update('installments', inst);
+
+        showToast('تم التراجع عن الدفع');
+        openPlanDetail(planId);
+        if (state.view === 'dashboard') loadDashboard();
+      } catch (err) {
+        showToast(err.message || err);
+      }
     }
 
     // ========================================================================
@@ -2998,7 +3141,7 @@
     }
 
     // ========================================================================
-    // ==================== BACKUP & RESTORE (الحل المتكامل) =================
+    // ==================== BACKUP & RESTORE =================================
     // ========================================================================
 
     // ----- 1. قاعدة بيانات الملفات المحفوظة داخل التطبيق -----
@@ -3016,7 +3159,7 @@
       });
     }
 
-    // ----- 2. التصدير (النسخة الاحتياطية) مع الحفظ في التطبيق والتحميل -----
+    // ----- 2. التصدير (النسخة الاحتياطية) -----
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
         showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
@@ -3082,7 +3225,6 @@
             showToast(`✅ تم حفظ أيضاً في مجلد "${dirHandle.name}"`);
           }
         } catch (fsErr) {
-          // المستخدم ألغى أو المتصفح لا يدعم
           console.log('⚠️ لم يتم حفظ في مجلد التطبيق:', fsErr.message || fsErr);
         }
 
@@ -3147,7 +3289,6 @@
       try {
         showToast('⏳ جاري استرجاع البيانات...');
 
-        // استخدم اسم مختلف لقاعدة الملفات
         const fileDB = await openFileDB();
         const tx = fileDB.transaction('files', 'readonly');
         const store = tx.objectStore('files');
@@ -3167,8 +3308,7 @@
           throw new Error('الملف غير صالح');
         }
 
-        // استخدم الـ db الأصلي لمسح البيانات
-        await db.clearAll();  // ✅ صح: ده الـ LocalDB
+        await db.clearAll();
 
         for (let c of data.customers || []) await db.add('customers', c);
         for (let p of data.plans || []) await db.add('plans', p);
@@ -3186,6 +3326,7 @@
         showToast('❌ خطأ أثناء الاسترجاع: ' + err.message);
       }
     }
+
     // ----- 5. حذف ملف محفوظ -----
     async function deleteSavedFile(fileName) {
       if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
@@ -3222,13 +3363,13 @@
         }
 
         if (files.length === 0) {
-          showToast('❌ لا يوجد ملفات JSON في هذا المجلد');
+          showToast('❌ لا يوجد ملفات Mido في هذا المجلد');
           return;
         }
 
         let html = `<h2>📂 اختيار ملف للاسترجاع</h2>
         <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
-          اختر ملف JSON من مجلد "${dirHandle.name}":
+          اختر ملف Mido من مجلد "${dirHandle.name}":
         </p>
         <div style="max-height:350px; overflow-y:auto;">`;
 
@@ -3280,8 +3421,7 @@
 
         showToast('⏳ جاري استرجاع البيانات...');
 
-        // استخدم الـ db الأصلي
-        await db.clearAll();  // ✅ صح
+        await db.clearAll();
 
         for (let c of data.customers || []) await db.add('customers', c);
         for (let p of data.plans || []) await db.add('plans', p);
