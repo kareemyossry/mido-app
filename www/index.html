@@ -796,6 +796,7 @@
         transform: translateY(-30px);
         opacity: 0;
       }
+
       to {
         transform: translateY(0);
         opacity: 1;
@@ -1117,7 +1118,7 @@
         <button class="btn-secondary-action" id="saved-files-btn">📂 الملفات المحفوظة</button>
         <button class="btn-secondary-action" id="restore-btn">📂 استرجاع البيانات</button>
         <button class="btn-secondary-action btn-logout" id="logout-btn">🚪 تسجيل الخروج</button>
-        <input type="file" id="import-file" accept=".json" style="display:none">
+        <input type="file" id="import-file" accept=".mido" style="display:none">
       </div>
     </aside>
 
@@ -1661,7 +1662,22 @@
           req.onerror = () => reject('خطأ أثناء الحذف');
         });
       }
+      // ===== دالة clearAll (لحذف كل البيانات) =====
+      // ===== دالة clearAll (لمسح كل البيانات) =====
+      async clearAll() {
+        const db = await this.open();
+        const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments', 'circle_payouts'];
+        const tx = db.transaction(stores, 'readwrite');
+        for (let s of stores) {
+          tx.objectStore(s).clear();
+        }
+        return new Promise((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject('فشل مسح البيانات');
+        });
+      }
 
+      // ===== دالة clearAll (اللي كانت ناقصة) =====
       async clearAll() {
         const db = await this.open();
         const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments',
@@ -1671,7 +1687,10 @@
         for (let s of stores) {
           tx.objectStore(s).clear();
         }
-        return new Promise((resolve) => tx.oncomplete = () => resolve());
+        return new Promise((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject('فشل مسح البيانات');
+        });
       }
     }
 
@@ -2393,7 +2412,7 @@
         const name = document.getElementById('c-name').value.trim();
         if (!name) {
           document.getElementById('form-error').innerHTML =
-          `<div class="form-error">اسم العميل مطلوب</div>`; return;
+            `<div class="form-error">اسم العميل مطلوب</div>`; return;
         }
         try {
           await db.add('customers', {
@@ -2979,10 +2998,10 @@
     }
 
     // ========================================================================
-    // ==================== BACKUP & RESTORE (حل نهائي) ======================
+    // ==================== BACKUP & RESTORE (الحل المتكامل) =================
     // ========================================================================
 
-    // ===== 1. فتح قاعدة بيانات الملفات =====
+    // ----- 1. قاعدة بيانات الملفات المحفوظة داخل التطبيق -----
     function openFileDB() {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open('MidoFileStore', 1);
@@ -2997,12 +3016,11 @@
       });
     }
 
-    // ===== 2. تصدير النسخة الاحتياطية =====
+    // ----- 2. التصدير (النسخة الاحتياطية) مع الحفظ في التطبيق والتحميل -----
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
         showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
 
-        // جلب كل البيانات
         const data = {
           customers: await db.getAll('customers'),
           plans: await db.getAll('plans'),
@@ -3015,9 +3033,9 @@
         };
 
         const jsonStr = JSON.stringify(data, null, 2);
-        const fileName = `Mido_Backup_${todayStr()}.json`;
+        const fileName = `Mido_Backup_${todayStr()}.mido`;
 
-        // ===== حفظ الملف في IndexedDB (داخل التطبيق) =====
+        // حفظ في التطبيق
         const fileDB = await openFileDB();
         const tx = fileDB.transaction('files', 'readwrite');
         const store = tx.objectStore('files');
@@ -3032,11 +3050,9 @@
 
         showToast('✅ تم حفظ النسخة في التطبيق');
 
-        // ===== تحميل الملف مباشرة =====
+        // تحميل في مجلد التنزيلات
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-
-        // طريقة التحميل (تشغل على الموبايل والكمبيوتر)
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
@@ -3044,28 +3060,38 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-
         setTimeout(() => {
           URL.revokeObjectURL(url);
-          showToast('✅ تم التحميل بنجاح');
-
-          // إشعار بمكان الملف
-          setTimeout(() => {
-            showInAppNotification(
-              '📁 الملف في مجلد التنزيلات (Downloads)\n' + fileName,
-              'info',
-              10000
-            );
-          }, 1000);
-
+          showToast('✅ تم التحميل في مجلد التنزيلات');
         }, 1500);
+
+        // محاولة حفظ في مجلد التطبيق (File System Access API)
+        try {
+          if ('showDirectoryPicker' in window) {
+            const dirHandle = await window.showDirectoryPicker();
+            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(jsonStr);
+            await writable.close();
+
+            localStorage.setItem('mido_folder_handle', JSON.stringify({
+              name: dirHandle.name,
+              timestamp: Date.now()
+            }));
+
+            showToast(`✅ تم حفظ أيضاً في مجلد "${dirHandle.name}"`);
+          }
+        } catch (fsErr) {
+          // المستخدم ألغى أو المتصفح لا يدعم
+          console.log('⚠️ لم يتم حفظ في مجلد التطبيق:', fsErr.message || fsErr);
+        }
 
       } catch (err) {
         showToast('❌ خطأ: ' + err.message);
       }
     });
 
-    // ===== 3. عرض الملفات المحفوظة =====
+    // ----- 3. عرض الملفات المحفوظة داخل التطبيق -----
     async function showSavedFiles() {
       try {
         const db = await openFileDB();
@@ -3082,6 +3108,9 @@
         }
 
         let html = `<h2>📂 الملفات المحفوظة</h2>
+        <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
+          اختر ملف لاسترجاع البيانات منه:
+        </p>
         <div style="max-height:350px; overflow-y:auto;">`;
 
         for (const file of files) {
@@ -3092,7 +3121,7 @@
                 <div class="row-title">📊 ${file.name}</div>
                 <div class="row-sub">التاريخ: ${file.date || 'غير معروف'} · الحجم: ${sizeKB} KB</div>
               </div>
-              <button class="btn btn-primary btn-sm" onclick="downloadSavedFile('${file.name}')">⬇️ تحميل</button>
+              <button class="btn btn-primary btn-sm" onclick="restoreFromApp('${file.name}')">🔄 استرجاع</button>
               <button class="btn btn-danger-text btn-sm" onclick="deleteSavedFile('${file.name}')">🗑️</button>
             </div>
           `;
@@ -3101,6 +3130,7 @@
         html += `</div>
         <div class="modal-close-row">
           <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
+          <button class="btn btn-primary" onclick="restoreFromAppFolder()">📂 استرجاع من مجلد التطبيق</button>
         </div>`;
 
         openModal(html);
@@ -3110,11 +3140,16 @@
       }
     }
 
-    // ===== 4. تحميل ملف محفوظ =====
-    async function downloadSavedFile(fileName) {
+    // ----- 4. استرجاع من ملف محفوظ داخل التطبيق -----
+    async function restoreFromApp(fileName) {
+      if (!confirm(`⚠️ هل أنت متأكد من استرجاع البيانات من "${fileName}"؟\nسيتم استبدال البيانات الحالية.`)) return;
+
       try {
-        const db = await openFileDB();
-        const tx = db.transaction('files', 'readonly');
+        showToast('⏳ جاري استرجاع البيانات...');
+
+        // استخدم اسم مختلف لقاعدة الملفات
+        const fileDB = await openFileDB();
+        const tx = fileDB.transaction('files', 'readonly');
         const store = tx.objectStore('files');
         const request = store.get(fileName);
         const file = await new Promise((resolve) => {
@@ -3126,28 +3161,32 @@
           return;
         }
 
-        const blob = new Blob([file.data], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        const data = JSON.parse(file.data);
 
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        if (!data.customers || !data.plans) {
+          throw new Error('الملف غير صالح');
+        }
 
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          showToast('✅ تم تحميل الملف بنجاح');
-        }, 1000);
+        // استخدم الـ db الأصلي لمسح البيانات
+        await db.clearAll();  // ✅ صح: ده الـ LocalDB
+
+        for (let c of data.customers || []) await db.add('customers', c);
+        for (let p of data.plans || []) await db.add('plans', p);
+        for (let i of data.installments || []) await db.add('installments', i);
+        for (let cr of data.circles || []) await db.add('circles', cr);
+        for (let cm of data.circle_members || []) await db.add('circle_members', cm);
+        for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
+        for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
+
+        showToast('✅ تم استرجاع البيانات بنجاح!');
+        closeModal();
+        switchView(state.view);
 
       } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
+        showToast('❌ خطأ أثناء الاسترجاع: ' + err.message);
       }
     }
-
-    // ===== 5. حذف ملف محفوظ =====
+    // ----- 5. حذف ملف محفوظ -----
     async function deleteSavedFile(fileName) {
       if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
 
@@ -3165,11 +3204,127 @@
       }
     }
 
-    // ===== 6. استرجاع من ملف (رفع ملف) =====
+    // ----- 6. استرجاع من مجلد التطبيق (File System Access API) -----
+    async function restoreFromAppFolder() {
+      try {
+        if (!('showDirectoryPicker' in window)) {
+          showToast('❌ هذه الميزة غير مدعومة على متصفحك');
+          return;
+        }
+
+        const dirHandle = await window.showDirectoryPicker();
+
+        const files = [];
+        for await (const entry of dirHandle.values()) {
+          if (entry.kind === 'file' && entry.name.endsWith('.mido')) {
+            files.push(entry);
+          }
+        }
+
+        if (files.length === 0) {
+          showToast('❌ لا يوجد ملفات JSON في هذا المجلد');
+          return;
+        }
+
+        let html = `<h2>📂 اختيار ملف للاسترجاع</h2>
+        <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
+          اختر ملف JSON من مجلد "${dirHandle.name}":
+        </p>
+        <div style="max-height:350px; overflow-y:auto;">`;
+
+        for (let file of files) {
+          const stat = await file.getFile();
+          const sizeKB = (stat.size / 1024).toFixed(1);
+          html += `
+            <div class="row-item">
+              <div class="row-main">
+                <div class="row-title">📊 ${file.name}</div>
+                <div class="row-sub">الحجم: ${sizeKB} KB</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="restoreFromFileHandle('${file.name}')">🔄 استرجاع</button>
+            </div>
+          `;
+        }
+
+        html += `</div>
+        <div class="modal-close-row">
+          <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        </div>`;
+
+        openModal(html);
+        window._currentFolderHandle = dirHandle;
+
+      } catch (err) {
+        if (err.name === 'AbortError' || err.message.includes('abort')) {
+          showToast('❌ تم إلغاء اختيار المجلد');
+        } else {
+          showToast('❌ خطأ: ' + err.message);
+        }
+      }
+    }
+
+    // ----- 7. استرجاع من ملف في مجلد التطبيق -----
+    async function restoreFromFileHandle(fileName) {
+      if (!confirm(`⚠️ هل أنت متأكد من استرجاع البيانات من "${fileName}"؟\nسيتم استبدال البيانات الحالية.`)) return;
+
+      try {
+        const dirHandle = window._currentFolderHandle;
+        if (!dirHandle) throw new Error('لم يتم تحديد مجلد');
+
+        const fileHandle = await dirHandle.getFileHandle(fileName);
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        if (!data.customers || !data.plans) throw new Error('الملف غير صالح');
+
+        showToast('⏳ جاري استرجاع البيانات...');
+
+        // استخدم الـ db الأصلي
+        await db.clearAll();  // ✅ صح
+
+        for (let c of data.customers || []) await db.add('customers', c);
+        for (let p of data.plans || []) await db.add('plans', p);
+        for (let i of data.installments || []) await db.add('installments', i);
+        for (let cr of data.circles || []) await db.add('circles', cr);
+        for (let cm of data.circle_members || []) await db.add('circle_members', cm);
+        for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
+        for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
+
+        showToast('✅ تم استرجاع البيانات بنجاح!');
+        closeModal();
+        switchView(state.view);
+
+      } catch (err) {
+        showToast('❌ خطأ أثناء الاسترجاع: ' + err.message);
+      }
+    }
+
+    // ----- 8. استرجاع البيانات (الزر الرئيسي) -----
     document.getElementById('restore-btn').addEventListener('click', () => {
-      document.getElementById('import-file').click();
+      openModal(`
+        <h2>📂 استرجاع البيانات</h2>
+        <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
+          اختر طريقة الاسترجاع:
+        </p>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+          <button class="btn btn-primary" onclick="closeModal();restoreFromAppFolder();">
+            📂 استرجاع من مجلد التطبيق
+          </button>
+          <button class="btn btn-outline" onclick="closeModal();document.getElementById('import-file').click();">
+            📄 رفع ملف من الجهاز
+          </button>
+          <button class="btn btn-outline" onclick="closeModal();showSavedFiles();">
+            📁 استرجاع من الملفات المحفوظة
+          </button>
+        </div>
+        <div class="modal-close-row">
+          <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        </div>
+      `);
     });
 
+    // ----- 9. استرجاع من ملف (رفع ملف) -----
     document.getElementById('import-file').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -3200,9 +3355,10 @@
         }
       };
       reader.readAsText(file);
+      e.target.value = '';
     });
 
-    // ===== 7. زر عرض الملفات المحفوظة =====
+    // ----- 10. زر الملفات المحفوظة -----
     document.getElementById('saved-files-btn').addEventListener('click', () => {
       showSavedFiles();
       sidebar.classList.remove('open');
