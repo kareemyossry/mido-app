@@ -2979,19 +2979,30 @@
     }
 
     // ========================================================================
-    // ==================== CAPACITOR BACKUP & RESTORE ======================
+    // ==================== BACKUP & RESTORE (حل نهائي) ======================
     // ========================================================================
 
-    // التحقق من وجود Capacitor
-    function isCapacitor() {
-      return !!(window.Capacitor && window.Capacitor.Plugins);
+    // ===== 1. فتح قاعدة بيانات الملفات =====
+    function openFileDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('MidoFileStore', 1);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('files')) {
+            db.createObjectStore('files', { keyPath: 'name' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject('فشل فتح قاعدة الملفات');
+      });
     }
 
-    // ===== 1. تصدير النسخة الاحتياطية (Capacitor) =====
-    async function capacitorBackup() {
+    // ===== 2. تصدير النسخة الاحتياطية =====
+    document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
-        const { Filesystem, Directory, Encoding } = Capacitor.Plugins.Filesystem;
+        showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
 
+        // جلب كل البيانات
         const data = {
           customers: await db.getAll('customers'),
           plans: await db.getAll('plans'),
@@ -3006,103 +3017,64 @@
         const jsonStr = JSON.stringify(data, null, 2);
         const fileName = `Mido_Backup_${todayStr()}.json`;
 
-        // حفظ الملف في مجلد التطبيق
-        await Filesystem.writeFile({
-          path: fileName,
+        // ===== حفظ الملف في IndexedDB (داخل التطبيق) =====
+        const fileDB = await openFileDB();
+        const tx = fileDB.transaction('files', 'readwrite');
+        const store = tx.objectStore('files');
+        store.put({
+          name: fileName,
           data: jsonStr,
-          directory: Directory.Documents,
-          encoding: Encoding.UTF8
+          type: 'json',
+          date: todayStr(),
+          size: jsonStr.length
         });
+        await new Promise((resolve) => tx.oncomplete = resolve);
 
-        showToast('✅ تم حفظ النسخة في مجلد التطبيق');
+        showToast('✅ تم حفظ النسخة في التطبيق');
 
-        // محاولة المشاركة
-        try {
-          const { Share } = Capacitor.Plugins.Share;
-          await Share.share({
-            title: '📊 نسخة احتياطية Mido',
-            text: `📁 ملف النسخة الاحتياطية: ${fileName}`,
-            dialogTitle: 'شارك الملف'
-          });
-          showToast('✅ تم مشاركة الملف');
-        } catch (shareErr) {
-          if (shareErr.message !== 'Share canceled') {
-            console.log('Share error:', shareErr);
-          }
-        }
-
-        // عرض إشعار بمكان الملف
-        setTimeout(() => {
-          showInAppNotification(
-            `📁 الملف محفوظ في مجلد التطبيق\n${fileName}\nاستخدم "الملفات المحفوظة" لعرضها`,
-            'info',
-            10000
-          );
-        }, 2000);
-
-      } catch (err) {
-        // لو فشل Capacitor، نستخدم الطريقة العادية
-        console.log('Capacitor backup failed, using fallback:', err);
-        fallbackBackup();
-      }
-    }
-
-    // ===== 2. الطريقة العادية (للويب) =====
-    async function fallbackBackup() {
-      try {
-        const data = {
-          customers: await db.getAll('customers'),
-          plans: await db.getAll('plans'),
-          installments: await db.getAll('installments'),
-          circles: await db.getAll('circles'),
-          circle_members: await db.getAll('circle_members'),
-          circle_payments: await db.getAll('circle_payments'),
-          circle_payouts: await db.getAll('circle_payouts'),
-          exported_at: new Date().toISOString()
-        };
-        const jsonStr = JSON.stringify(data, null, 2);
+        // ===== تحميل الملف مباشرة =====
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
+
+        // طريقة التحميل (تشغل على الموبايل والكمبيوتر)
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Mido_App_Backup_${todayStr()}.json`;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
-        showToast('تم تصدير النسخة الاحتياطية بنجاح');
+        document.body.removeChild(a);
+
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          showToast('✅ تم التحميل بنجاح');
+
+          // إشعار بمكان الملف
+          setTimeout(() => {
+            showInAppNotification(
+              '📁 الملف في مجلد التنزيلات (Downloads)\n' + fileName,
+              'info',
+              10000
+            );
+          }, 1000);
+
+        }, 1500);
+
       } catch (err) {
         showToast('❌ خطأ: ' + err.message);
       }
-    }
-
-    // ===== 3. زر التصدير =====
-    document.getElementById('backup-btn').addEventListener('click', async () => {
-      showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
-
-      if (isCapacitor()) {
-        await capacitorBackup();
-      } else {
-        await fallbackBackup();
-      }
     });
 
-    // ===== 4. عرض الملفات المحفوظة (Capacitor) =====
+    // ===== 3. عرض الملفات المحفوظة =====
     async function showSavedFiles() {
       try {
-        if (!isCapacitor()) {
-          showToast('📂 مفيش ملفات محفوظة (التطبيق مش على الموبايل)');
-          return;
-        }
-
-        const { Filesystem, Directory } = Capacitor.Plugins.Filesystem;
-
-        const result = await Filesystem.readdir({
-          path: '',
-          directory: Directory.Documents
+        const db = await openFileDB();
+        const tx = db.transaction('files', 'readonly');
+        const store = tx.objectStore('files');
+        const request = store.getAll();
+        const files = await new Promise((resolve) => {
+          request.onsuccess = () => resolve(request.result || []);
         });
-
-        const files = result.files.filter(f =>
-          f.name.endsWith('.json') && f.name.startsWith('Mido_Backup_')
-        );
 
         if (files.length === 0) {
           showToast('📂 مفيش ملفات نسخ احتياطي');
@@ -3113,25 +3085,17 @@
         <div style="max-height:350px; overflow-y:auto;">`;
 
         for (const file of files) {
-          try {
-            const fileInfo = await Filesystem.stat({
-              path: file.name,
-              directory: Directory.Documents
-            });
-
-            html += `
-              <div class="row-item">
-                <div class="row-main">
-                  <div class="row-title">📊 ${file.name}</div>
-                  <div class="row-sub">الحجم: ${(fileInfo.size / 1024).toFixed(1)} KB</div>
-                </div>
-                <button class="btn btn-primary btn-sm" onclick="restoreBackupFile('${file.name}')">استرجاع</button>
-                <button class="btn btn-danger-text btn-sm" onclick="deleteBackupFile('${file.name}')">🗑️</button>
+          const sizeKB = (file.size / 1024).toFixed(1);
+          html += `
+            <div class="row-item">
+              <div class="row-main">
+                <div class="row-title">📊 ${file.name}</div>
+                <div class="row-sub">التاريخ: ${file.date || 'غير معروف'} · الحجم: ${sizeKB} KB</div>
               </div>
-            `;
-          } catch (e) {
-            console.log('خطأ في قراءة الملف:', file.name);
-          }
+              <button class="btn btn-primary btn-sm" onclick="downloadSavedFile('${file.name}')">⬇️ تحميل</button>
+              <button class="btn btn-danger-text btn-sm" onclick="deleteSavedFile('${file.name}')">🗑️</button>
+            </div>
+          `;
         }
 
         html += `</div>
@@ -3146,97 +3110,78 @@
       }
     }
 
-    // ===== 5. استرجاع ملف =====
-    async function restoreBackupFile(fileName) {
-      if (!confirm(`⚠️ هل أنت متأكد من استرجاع الملف "${fileName}"؟\nسيتم استبدال البيانات الحالية.`)) return;
-
+    // ===== 4. تحميل ملف محفوظ =====
+    async function downloadSavedFile(fileName) {
       try {
-        if (!isCapacitor()) {
-          showToast('❌ الميزة مش مدعومة في هذا المتصفح');
+        const db = await openFileDB();
+        const tx = db.transaction('files', 'readonly');
+        const store = tx.objectStore('files');
+        const request = store.get(fileName);
+        const file = await new Promise((resolve) => {
+          request.onsuccess = () => resolve(request.result);
+        });
+
+        if (!file) {
+          showToast('❌ الملف غير موجود');
           return;
         }
 
-        const { Filesystem, Directory, Encoding } = Capacitor.Plugins.Filesystem;
+        const blob = new Blob([file.data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
 
-        showToast('⏳ جاري استرجاع البيانات...');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
 
-        const content = await Filesystem.readFile({
-          path: fileName,
-          directory: Directory.Documents,
-          encoding: Encoding.UTF8
-        });
-
-        const data = JSON.parse(content.data);
-
-        if (!data.customers || !data.plans) {
-          throw new Error('الملف غير صالح');
-        }
-
-        await db.clearAll();
-
-        for (let c of data.customers || []) await db.add('customers', c);
-        for (let p of data.plans || []) await db.add('plans', p);
-        for (let i of data.installments || []) await db.add('installments', i);
-        for (let cr of data.circles || []) await db.add('circles', cr);
-        for (let cm of data.circle_members || []) await db.add('circle_members', cm);
-        for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
-        for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
-
-        showToast('✅ تم استرجاع البيانات بنجاح!');
-        closeModal();
-        switchView(state.view);
-
-      } catch (err) {
-        showToast('❌ خطأ أثناء الاسترجاع: ' + err.message);
-      }
-    }
-
-    // ===== 6. حذف ملف =====
-    async function deleteBackupFile(fileName) {
-      if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
-
-      try {
-        if (!isCapacitor()) {
-          showToast('❌ الميزة مش مدعومة');
-          return;
-        }
-
-        const { Filesystem, Directory } = Capacitor.Plugins.Filesystem;
-
-        await Filesystem.deleteFile({
-          path: fileName,
-          directory: Directory.Documents
-        });
-
-        showToast('✅ تم حذف الملف');
-        showSavedFiles();
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          showToast('✅ تم تحميل الملف بنجاح');
+        }, 1000);
 
       } catch (err) {
         showToast('❌ خطأ: ' + err.message);
       }
     }
 
-    // ===== 7. زر عرض الملفات المحفوظة =====
-    document.getElementById('saved-files-btn').addEventListener('click', () => {
-      showSavedFiles();
-      sidebar.classList.remove('open');
-      drawerOverlay.classList.remove('open');
-    });
+    // ===== 5. حذف ملف محفوظ =====
+    async function deleteSavedFile(fileName) {
+      if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
 
-    // ===== 8. استرجاع من ملف (الطريقة القديمة) =====
+      try {
+        const db = await openFileDB();
+        const tx = db.transaction('files', 'readwrite');
+        const store = tx.objectStore('files');
+        store.delete(fileName);
+        await new Promise((resolve) => tx.oncomplete = resolve);
+
+        showToast('✅ تم حذف الملف');
+        showSavedFiles();
+      } catch (err) {
+        showToast('❌ خطأ: ' + err.message);
+      }
+    }
+
+    // ===== 6. استرجاع من ملف (رفع ملف) =====
     document.getElementById('restore-btn').addEventListener('click', () => {
       document.getElementById('import-file').click();
     });
 
-    document.getElementById('import-file').addEventListener('change', (e) => {
+    document.getElementById('import-file').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
       const reader = new FileReader();
       reader.onload = async (evt) => {
         try {
           const data = JSON.parse(evt.target.result);
           if (!data.customers || !data.plans) throw new Error('الملف غير صالح');
-          if (!confirm('استرجاع البيانات سيمحو البيانات الحالية ويستبدلها بالنسخة. هل أنت متأكد؟')) return;
+          if (!confirm('⚠️ استرجاع البيانات سيمحو البيانات الحالية ويستبدلها. هل أنت متأكد؟')) return;
+
+          showToast('⏳ جاري استرجاع البيانات...');
 
           await db.clearAll();
 
@@ -3248,13 +3193,20 @@
           for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
           for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
 
-          showToast('تم استرجاع البيانات بنجاح!');
+          showToast('✅ تم استرجاع البيانات بنجاح!');
           switchView(state.view);
         } catch (err) {
-          alert('فشل استرجاع الملف: ' + err.message);
+          alert('❌ فشل استرجاع الملف: ' + err.message);
         }
       };
       reader.readAsText(file);
+    });
+
+    // ===== 7. زر عرض الملفات المحفوظة =====
+    document.getElementById('saved-files-btn').addEventListener('click', () => {
+      showSavedFiles();
+      sidebar.classList.remove('open');
+      drawerOverlay.classList.remove('open');
     });
 
     // ========================================================================
