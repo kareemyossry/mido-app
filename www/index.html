@@ -61,7 +61,7 @@
       font-feature-settings: "tnum";
     }
 
-    /* ========== ACTIVATION SCREEN ========== */
+    /* ========== LOGIN SCREEN ========== */
     .login-wrapper {
       position: fixed;
       inset: 0;
@@ -221,6 +221,7 @@
       border-radius: 10px;
     }
 
+    /* إخفاء زر تغيير كلمة السر في البداية */
     #change-password-nav {
       display: none;
       margin-top: 10px;
@@ -489,11 +490,6 @@
       color: var(--text-muted);
     }
 
-    .pill-partial {
-      background: #FFF3E0;
-      color: #E65100;
-    }
-
     /* Progress bar */
     .inst-track {
       display: flex;
@@ -516,12 +512,13 @@
       background: var(--danger);
     }
 
-    .inst-seg.upcoming {
-      background: #E3E7EC;
+    .inst-seg.warn {
+      background: var(--amber);
+      /* For partially paid */
     }
 
-    .inst-seg.partial {
-      background: var(--amber);
+    .inst-seg.upcoming {
+      background: #E3E7EC;
     }
 
     /* ---------- Buttons & Inputs ---------- */
@@ -755,54 +752,6 @@
       display: none;
     }
 
-    /* ===== In-App Notification ===== */
-    .inapp-notification {
-      position: fixed;
-      top: 70px;
-      right: 20px;
-      left: 20px;
-      max-width: 400px;
-      margin: 0 auto;
-      padding: 14px 18px;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-      z-index: 300;
-      font-family: 'Tajawal', sans-serif;
-      font-size: 14px;
-      animation: slideDown 0.3s ease;
-      direction: rtl;
-      text-align: right;
-      color: white;
-    }
-
-    .inapp-notification.info {
-      background: var(--primary);
-    }
-
-    .inapp-notification.warning {
-      background: var(--amber);
-    }
-
-    .inapp-notification.danger {
-      background: var(--danger);
-    }
-
-    .inapp-notification.success {
-      background: var(--primary-dark);
-    }
-
-    @keyframes slideDown {
-      from {
-        transform: translateY(-30px);
-        opacity: 0;
-      }
-
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
     /* ---------- Circles ---------- */
     .turn-badge {
       width: 26px;
@@ -865,12 +814,6 @@
       background: var(--danger-tint);
       color: var(--danger);
       border: 1px solid var(--danger);
-    }
-
-    .pay-dot.partial-cell {
-      background: var(--amber-tint);
-      color: var(--amber);
-      border: 1px solid var(--amber);
     }
 
     .payout-row {
@@ -989,14 +932,6 @@
       .round-table {
         font-size: 11px;
       }
-
-      .inapp-notification {
-        top: 60px;
-        right: 10px;
-        left: 10px;
-        font-size: 13px;
-        padding: 12px 14px;
-      }
     }
 
     @media (max-width: 480px) {
@@ -1027,41 +962,8 @@
     📱 ثبّت التطبيق على هاتفك
   </button>
 
-  <!-- ========== ACTIVATION SCREEN ========== -->
-  <div class="login-wrapper" id="activation-screen" hidden>
-    <div class="login-card">
-      <div class="brand-mark">M</div>
-      <h2>تفعيل التطبيق</h2>
-      <p>التطبيق ده محتاج تفعيل من صاحبه قبل الاستخدام</p>
-      <div id="activation-error"></div>
-
-      <div class="form-group">
-        <label>كود جهازك (ابعته لصاحب التطبيق)</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="device-code-display" readonly dir="ltr"
-            style="font-family: monospace; font-size: 16px; text-align:center; letter-spacing:1px;">
-          <button class="btn btn-outline" id="copy-device-code-btn" type="button"
-            style="white-space:nowrap;">نسخ</button>
-        </div>
-      </div>
-
-      <p style="font-size:12.5px; color:var(--text-muted); margin: 10px 0 18px; line-height:1.6;">
-        ابعت الكود ده لصاحب التطبيق (واتساب مثلاً)، وهيبعتلك "كود تفعيل" تكتبه تحت.
-      </p>
-
-      <div class="form-group">
-        <label>كود التفعيل</label>
-        <input type="text" id="activation-code-input" placeholder="XXXX-XXXX" dir="ltr"
-          style="font-family: monospace; text-align:center; letter-spacing:1px;">
-      </div>
-
-      <button class="btn btn-primary" id="activate-btn"
-        style="width: 100%; padding: 11px; margin-top: 6px;">تفعيل</button>
-    </div>
-  </div>
-
   <!-- ========== LOGIN SCREEN ========== -->
-  <div class="login-wrapper" id="login-screen" hidden>
+  <div class="login-wrapper" id="login-screen">
     <div class="login-card">
       <div class="brand-mark">M</div>
       <h2>تسجيل الدخول</h2>
@@ -1108,17 +1010,22 @@
           <span class="nav-icon">!</span> المتأخرات
           <span class="nav-badge" id="overdue-badge" hidden>0</span>
         </button>
+        <!-- زر تغيير كلمة السر -->
         <button class="nav-item" id="change-password-nav">
-          <span class="nav-icon">🔑</span> تغيير بيانات الدخول
+          <span class="nav-icon">🔑</span> تغيير كلمة السر
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon">⚙️</span> الإعدادات
         </button>
       </nav>
       <div class="sidebar-footer">
         <button class="btn-new" id="global-new-plan">+ خطة تقسيط جديدة</button>
         <button class="btn-secondary-action" id="backup-btn">💾 نسخة احتياطية (تصدير)</button>
-        <button class="btn-secondary-action" id="saved-files-btn">📂 الملفات المحفوظة</button>
+        <button class="btn-secondary-action" id="share-backup-btn">📤 مشاركة النسخة الاحتياطية</button>
         <button class="btn-secondary-action" id="restore-btn">📂 استرجاع البيانات</button>
+        <button class="btn-secondary-action" id="send-admin-report-btn">📊 تقرير للمسؤول</button>
         <button class="btn-secondary-action btn-logout" id="logout-btn">🚪 تسجيل الخروج</button>
-        <input type="file" id="import-file" accept=".mido" style="display:none">
+        <input type="file" id="import-file" accept=".json" style="display:none">
       </div>
     </aside>
 
@@ -1135,6 +1042,7 @@
       <section id="view-customers" class="view" hidden></section>
       <section id="view-plans" class="view" hidden></section>
       <section id="view-circles" class="view" hidden></section>
+      <section id="view-settings" class="view" hidden></section>
       <section id="view-overdue" class="view" hidden></section>
     </main>
   </div>
@@ -1146,10 +1054,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script>
-    // ========================================================================
-    // ==================== PWA INSTALL ======================================
-    // ========================================================================
-
+    // ==================== PWA INSTALL ====================
     let deferredPrompt;
     const installBanner = document.getElementById('install-banner');
 
@@ -1178,93 +1083,9 @@
       showToast('🎉 شكراً لتثبيت التطبيق!');
     });
 
-    // ========================================================================
-    // ==================== APP ACTIVATION ===================================
-    // ========================================================================
-
-    const MIDO_ACTIVATION_SECRET = "Mido-Kareem-2026-XyQ7-SecretKey";
-
-    function getOrCreateDeviceCode() {
-      let code = localStorage.getItem('mido_device_code');
-      if (!code) {
-        const bytes = new Uint8Array(6);
-        crypto.getRandomValues(bytes);
-        const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-        code = hex.match(/.{1,4}/g).join('-');
-        localStorage.setItem('mido_device_code', code);
-      }
-      return code;
-    }
-
-    async function computeExpectedActivationCode(deviceCode) {
-      const enc = new TextEncoder();
-      const data = enc.encode(deviceCode + MIDO_ACTIVATION_SECRET);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-      return hex.slice(0, 8).match(/.{1,4}/g).join('-');
-    }
-
-    function normalizeCode(code) {
-      return (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    }
-
-    function isActivated() {
-      return localStorage.getItem('mido_activated') === '1';
-    }
-
-    async function initActivationScreen() {
-      const deviceCode = getOrCreateDeviceCode();
-      document.getElementById('device-code-display').value = deviceCode;
-
-      document.getElementById('copy-device-code-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(deviceCode).then(() => {
-          showToast('تم نسخ كود الجهاز');
-        }).catch(() => {
-          document.getElementById('device-code-display').select();
-          showToast('حدد الكود وانسخه يدويًا');
-        });
-      });
-
-      async function submitActivation() {
-        const errBox = document.getElementById('activation-error');
-        errBox.innerHTML = '';
-        const entered = normalizeCode(document.getElementById('activation-code-input').value);
-        const expected = normalizeCode(await computeExpectedActivationCode(deviceCode));
-
-        if (entered && entered === expected) {
-          localStorage.setItem('mido_activated', '1');
-          showToast('تم تفعيل التطبيق بنجاح');
-          document.getElementById('activation-screen').hidden = true;
-          checkAuth();
-        } else {
-          errBox.innerHTML = `<div class="form-error">❌ كود التفعيل غير صحيح</div>`;
-        }
-      }
-
-      document.getElementById('activate-btn').addEventListener('click', submitActivation);
-      document.getElementById('activation-code-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') submitActivation();
-      });
-    }
-
-    function checkActivation() {
-      if (isActivated()) {
-        document.getElementById('activation-screen').hidden = true;
-        checkAuth();
-      } else {
-        document.getElementById('login-screen').hidden = true;
-        document.getElementById('app-container').style.display = 'none';
-        document.getElementById('activation-screen').hidden = false;
-        initActivationScreen();
-      }
-    }
-
-    // ========================================================================
-    // ==================== ADMIN AUTHENTICATION =============================
-    // ========================================================================
-
-    let ADMIN_USER = localStorage.getItem('mido_admin_username') || "admin";
+    // ==================== ADMIN AUTHENTICATION ====================
+    const ADMIN_USER = "admin";
+    // جلب كلمة السر المخزنة أو استخدام الافتراضية
     let ADMIN_PASS = localStorage.getItem('mido_admin_password') || "admin123";
 
     function checkAuth() {
@@ -1273,18 +1094,10 @@
       const changePassBtn = document.getElementById('change-password-nav');
 
       if (sessionStorage.getItem('mido_admin_logged') === 'true') {
+        document.getElementById('activation-screen').hidden = true;
         loginScreen.hidden = true;
         appContainer.style.display = 'flex';
         changePassBtn.classList.add('show');
-        // تحديث التاريخ
-        document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-        // فحص الإشعارات
-        setTimeout(checkDueInstallments, 3000);
       } else {
         loginScreen.hidden = false;
         appContainer.style.display = 'none';
@@ -1325,59 +1138,41 @@
       }
     });
 
-    // ========================================================================
-    // ==================== CHANGE USERNAME & PASSWORD =======================
-    // ========================================================================
-
+    // ==================== CHANGE PASSWORD ====================
     document.getElementById('change-password-nav').addEventListener('click', () => {
-      openChangeCredentialsModal();
+      openChangePasswordModal();
       sidebar.classList.remove('open');
       drawerOverlay.classList.remove('open');
     });
 
-    function openChangeCredentialsModal() {
+    function openChangePasswordModal() { //
       openModal(`
-        <h2>🔑 تغيير بيانات الدخول</h2>
-        <div id="change-cred-error"></div>
-
-        <div class="form-group">
-          <label>اسم المستخدم الحالي</label>
-          <input type="text" id="current-username" value="${ADMIN_USER}" readonly dir="ltr" style="background:#f5f5f5;">
-        </div>
-        <div class="form-group">
-          <label>اسم المستخدم الجديد</label>
-          <input type="text" id="new-username" placeholder="أدخل اسم المستخدم الجديد" dir="ltr">
-          <div class="form-hint">اتركه فارغاً إذا لم تريد التغيير</div>
-        </div>
-
-        <hr style="border-color:var(--border); margin:16px 0;">
-
+        <h2>🔑 تغيير كلمة السر</h2>
+        <div id="change-pwd-error"></div>
         <div class="form-group">
           <label>كلمة السر الحالية *</label>
           <input type="password" id="old-password" placeholder="••••••••" dir="ltr">
         </div>
         <div class="form-group">
-          <label>كلمة السر الجديدة</label>
+          <label>كلمة السر الجديدة *</label>
           <input type="password" id="new-password" placeholder="••••••••" dir="ltr">
-          <div class="form-hint">اتركها فارغة إذا لم تريد التغيير (4 أحرف على الأقل)</div>
+          <div class="form-hint">يجب أن تكون 4 أحرف على الأقل</div>
         </div>
         <div class="form-group">
-          <label>تأكيد كلمة السر الجديدة</label>
+          <label>تأكيد كلمة السر الجديدة *</label>
           <input type="password" id="confirm-password" placeholder="••••••••" dir="ltr">
         </div>
-
         <div class="modal-close-row">
           <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
-          <button class="btn btn-primary" id="save-credentials-btn">حفظ التغيير</button>
+          <button class="btn btn-primary" id="save-password-btn">حفظ التغيير</button> //
         </div>
       `);
 
       document.getElementById('save-credentials-btn').addEventListener('click', () => {
         const oldPass = document.getElementById('old-password').value.trim();
-        const newUsername = document.getElementById('new-username').value.trim();
         const newPass = document.getElementById('new-password').value.trim();
         const confirmPass = document.getElementById('confirm-password').value.trim();
-        const errBox = document.getElementById('change-cred-error');
+        const errBox = document.getElementById('change-pwd-error');
 
         // التحقق من كلمة السر الحالية
         if (oldPass !== ADMIN_PASS) {
@@ -1385,187 +1180,42 @@
           return;
         }
 
-        let changes = [];
-
-        // تغيير اسم المستخدم
-        if (newUsername && newUsername !== ADMIN_USER) {
-          ADMIN_USER = newUsername;
-          localStorage.setItem('mido_admin_username', newUsername);
-          changes.push('اسم المستخدم');
-        }
-
-        // تغيير كلمة السر
-        if (newPass) {
-          if (newPass.length < 4) {
-            errBox.innerHTML = `<div class="form-error">❌ كلمة السر الجديدة قصيرة جداً (4 أحرف على الأقل)</div>`;
-            return;
-          }
-          if (newPass !== confirmPass) {
-            errBox.innerHTML = `<div class="form-error">❌ كلمة السر الجديدة غير مطابقة للتأكيد</div>`;
-            return;
-          }
-          if (newPass === oldPass) {
-            errBox.innerHTML = `<div class="form-error">❌ كلمة السر الجديدة يجب أن تكون مختلفة عن القديمة</div>`;
-            return;
-          }
-          ADMIN_PASS = newPass;
-          localStorage.setItem('mido_admin_password', newPass);
-          changes.push('كلمة السر');
-        }
-
-        if (changes.length === 0) {
-          errBox.innerHTML = `<div class="form-error">❌ لم تقم بتغيير أي شيء</div>`;
+        // التحقق من طول كلمة السر الجديدة
+        if (newPass.length < 4) {
+          errBox.innerHTML = `<div class="form-error">❌ كلمة السر الجديدة قصيرة جداً (4 أحرف على الأقل)</div>`;
           return;
         }
 
-        closeModal();
-        showToast(`✅ تم تغيير ${changes.join(' و ')} بنجاح`);
+        // التحقق من تطابق كلمة السر
+        if (newPass !== confirmPass) {
+          errBox.innerHTML = `<div class="form-error">❌ كلمة السر الجديدة غير مطابقة للتأكيد</div>`;
+          return;
+        }
 
-        // تسجيل الخروج عشان يدخل بالبيانات الجديدة
-        sessionStorage.removeItem('mido_admin_logged');
+        // التحقق من أنها مختلفة عن القديمة
+        if (newPass === oldPass) {
+          errBox.innerHTML = `<div class="form-error">❌ كلمة السر الجديدة يجب أن تكون مختلفة عن القديمة</div>`;
+          return;
+        }
+
+        // حفظ كلمة السر الجديدة
+        ADMIN_PASS = newPass;
+        localStorage.setItem('mido_admin_password', newPass);
+
+        closeModal();
+        showToast('✅ تم تغيير كلمة السر بنجاح');
+
+        // تسجيل الخروج عشان يدخل بالكلمة الجديدة
+        sessionStorage.removeItem('mido_admin_logged'); //
         checkAuth();
       });
     }
 
-    // ========================================================================
-    // ==================== IN-APP NOTIFICATIONS =============================
-    // ========================================================================
-
-    function showInAppNotification(message, type = 'info', duration = 8000) {
-      const colors = {
-        info: 'var(--primary)',
-        warning: 'var(--amber)',
-        danger: 'var(--danger)',
-        success: 'var(--primary-dark)'
-      };
-
-      const icons = {
-        info: '📢',
-        warning: '⚠️',
-        danger: '🚨',
-        success: '✅'
-      };
-
-      const titles = {
-        info: 'إشعار',
-        warning: 'تنبيه',
-        danger: 'مهم',
-        success: 'تم بنجاح'
-      };
-
-      const notification = document.createElement('div');
-      notification.className = `inapp-notification ${type}`;
-      notification.style.background = colors[type] || colors.info;
-      notification.innerHTML = `
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-size:20px;">${icons[type] || '📢'}</span>
-          <div style="flex:1;">
-            <div style="font-weight:700; margin-bottom:4px;">${titles[type] || 'إشعار'}</div>
-            <div style="font-weight:400; font-size:13px; opacity:0.95; white-space:pre-line;">${message}</div>
-          </div>
-          <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer;">✕</button>
-        </div>
-      `;
-
-      document.body.appendChild(notification);
-
-      // اختفاء تلقائي
-      setTimeout(() => {
-        if (notification.parentElement) {
-          notification.style.opacity = '0';
-          notification.style.transition = 'opacity 0.3s';
-          setTimeout(() => notification.remove(), 300);
-        }
-      }, duration);
-    }
-
-    // ========================================================================
-    // ==================== CHECK DUE INSTALLMENTS ===========================
-    // ========================================================================
-
-    async function checkDueInstallments() {
-      try {
-        const installments = await db.getAll('installments');
-        const plans = await db.getAll('plans');
-        const customers = await db.getAll('customers');
-        const today = todayStr();
-
-        // الأقساط المستحقة خلال يومين
-        const twoDaysLater = new Date();
-        twoDaysLater.setDate(twoDaysLater.getDate() + 2);
-        const twoDaysStr = twoDaysLater.toISOString().slice(0, 10);
-
-        const dueSoon = installments.filter(i => {
-          if (i.paid) return false;
-          return i.due_date >= today && i.due_date <= twoDaysStr;
-        });
-
-        // الأقساط المتأخرة
-        const overdue = installments.filter(i => {
-          if (i.paid) return false;
-          return i.due_date < today;
-        });
-
-        // الأقساط المدفوعة جزئياً (اللي فيها رصيد معلق)
-        const partial = installments.filter(i => {
-          return i.paid === false && i.remaining_balance && i.remaining_balance > 0;
-        });
-
-        // إشعارات الأقساط المستحقة
-        for (let inst of dueSoon) {
-          const plan = plans.find(p => p.id === inst.plan_id);
-          const cust = customers.find(c => c.id === plan?.customer_id);
-          if (!cust) continue;
-
-          showInAppNotification(
-            `📌 ${cust.name}\nقسط ${plan?.product_name || ''}\nالمبلغ: ${fmt(inst.amount)} ج.م\nيستحق: ${inst.due_date}`,
-            'warning',
-            10000
-          );
-        }
-
-        // إشعار المتأخرات
-        if (overdue.length > 0) {
-          showInAppNotification(
-            `🚨 يوجد ${overdue.length} أقساط متأخرة!\nإجمالي المتأخر: ${fmt(overdue.reduce((s, i) => s + i.amount, 0))} ج.م\nيرجى مراجعة صفحة المتأخرات`,
-            'danger',
-            12000
-          );
-        }
-
-        // إشعار الدفعات الجزئية (الرصيد المعلق)
-        if (partial.length > 0) {
-          let msg = '📊 رصيد معلق:\n';
-          for (let inst of partial.slice(0, 3)) {
-            const plan = plans.find(p => p.id === inst.plan_id);
-            const cust = customers.find(c => c.id === plan?.customer_id);
-            if (cust) {
-              msg += `• ${cust.name}: متبقي ${fmt(inst.remaining_balance)} ج.م\n`;
-            }
-          }
-          if (partial.length > 3) msg += `و ${partial.length - 3} أخرى...`;
-          showInAppNotification(msg, 'info', 10000);
-        }
-
-        // تحديث البادج
-        updateOverdueBadge(overdue.length);
-
-      } catch (err) {
-        console.log('⚠️ خطأ في فحص الأقساط:', err);
-      }
-    }
-
-    // فحص كل 6 ساعات
-    setInterval(checkDueInstallments, 6 * 60 * 60 * 1000);
-
-    // ========================================================================
-    // ==================== OFFLINE DATABASE ENGINE ==========================
-    // ========================================================================
-
+    // ==================== OFFLINE DATABASE ENGINE ====================
     class LocalDB {
       constructor() {
         this.dbName = 'MidoOfflineAppDB';
-        this.version = 2;
+        this.version = 1;
         this.db = null;
       }
 
@@ -1580,35 +1230,34 @@
           };
           request.onupgradeneeded = (e) => {
             const db = e.target.result;
-
-            // حذف الـ stores القديمة لو موجودة
-            const storesToRemove = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments',
-              'circle_payouts'
-            ];
-            for (let s of storesToRemove) {
-              if (db.objectStoreNames.contains(s)) {
-                db.deleteObjectStore(s);
-              }
+            if (!db.objectStoreNames.contains('customers')) {
+              const cStore = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
+              cStore.createIndex('name', 'name', { unique: false });
             }
-
-            // إنشاء الـ stores من جديد بالهيكل المطلوب
-            const cStore = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
-            cStore.createIndex('name', 'name', { unique: false });
-
-            const pStore = db.createObjectStore('plans', { keyPath: 'id', autoIncrement: true });
-            pStore.createIndex('customer_id', 'customer_id', { unique: false });
-
-            const iStore = db.createObjectStore('installments', { keyPath: 'id', autoIncrement: true });
-            iStore.createIndex('plan_id', 'plan_id', { unique: false });
-            iStore.createIndex('due_date', 'due_date', { unique: false });
-
-            db.createObjectStore('circles', { keyPath: 'id', autoIncrement: true });
-            const cmStore = db.createObjectStore('circle_members', { keyPath: 'id', autoIncrement: true });
-            cmStore.createIndex('circle_id', 'circle_id', { unique: false });
-            const cpStore = db.createObjectStore('circle_payments', { keyPath: 'id', autoIncrement: true });
-            cpStore.createIndex('circle_id', 'circle_id', { unique: false });
-            const cpoStore = db.createObjectStore('circle_payouts', { keyPath: 'id', autoIncrement: true });
-            cpoStore.createIndex('circle_id', 'circle_id', { unique: false });
+            if (!db.objectStoreNames.contains('plans')) {
+              const pStore = db.createObjectStore('plans', { keyPath: 'id', autoIncrement: true });
+              pStore.createIndex('customer_id', 'customer_id', { unique: false });
+            }
+            if (!db.objectStoreNames.contains('installments')) {
+              const iStore = db.createObjectStore('installments', { keyPath: 'id', autoIncrement: true });
+              iStore.createIndex('plan_id', 'plan_id', { unique: false });
+              iStore.createIndex('due_date', 'due_date', { unique: false });
+            }
+            if (!db.objectStoreNames.contains('circles')) {
+              db.createObjectStore('circles', { keyPath: 'id', autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains('circle_members')) {
+              const cmStore = db.createObjectStore('circle_members', { keyPath: 'id', autoIncrement: true });
+              cmStore.createIndex('circle_id', 'circle_id', { unique: false });
+            }
+            if (!db.objectStoreNames.contains('circle_payments')) {
+              const cpStore = db.createObjectStore('circle_payments', { keyPath: 'id', autoIncrement: true });
+              cpStore.createIndex('circle_id', 'circle_id', { unique: false });
+            }
+            if (!db.objectStoreNames.contains('circle_payouts')) {
+              const cpoStore = db.createObjectStore('circle_payouts', { keyPath: 'id', autoIncrement: true });
+              cpoStore.createIndex('circle_id', 'circle_id', { unique: false });
+            }
           };
         });
       }
@@ -1663,7 +1312,6 @@
         });
       }
 
-      // ===== دالة clearAll (لمسح كل البيانات) =====
       async clearAll() {
         const db = await this.open();
         const stores = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments', 'circle_payouts'];
@@ -1671,23 +1319,22 @@
         for (let s of stores) {
           tx.objectStore(s).clear();
         }
-        return new Promise((resolve, reject) => {
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject('فشل مسح البيانات');
-        });
+        return new Promise((resolve) => tx.oncomplete = () => resolve());
       }
     }
 
     const db = new LocalDB();
 
-    // ========================================================================
-    // ==================== APP LOGIC =======================================
-    // ========================================================================
+    // ==================== APP LOGIC ====================
 
+    function sendWhatsAppReminder(phoneNumber, message) {
+      if (!phoneNumber) { showToast('❌ لا يوجد رقم هاتف لإرسال الرسالة.'); return; }
+      const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+    }
     const state = { view: 'dashboard', customers: [], plans: [] };
 
     function fmt(n) { return Number(n || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-
     function todayStr() { return new Date().toISOString().slice(0, 10); }
 
     function showToast(msg) {
@@ -1696,6 +1343,12 @@
       t.hidden = false;
       clearTimeout(showToast._timer);
       showToast._timer = setTimeout(() => { t.hidden = true; }, 2600);
+    }
+
+    function sendWhatsAppReminder(phoneNumber, message) {
+      if (!phoneNumber) { showToast('❌ لا يوجد رقم هاتف لإرسال الرسالة.'); return; }
+      const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
     }
 
     function closeModal() {
@@ -1725,10 +1378,7 @@
     });
 
     // Navigation
-    const titles = {
-      dashboard: 'الرئيسية', customers: 'العملاء', plans: 'خطط التقسيط', circles: 'الجمعيات',
-      overdue: 'المتأخرات'
-    };
+    const titles = { dashboard: 'الرئيسية', customers: 'العملاء', plans: 'خطط التقسيط', circles: 'الجمعيات', overdue: 'المتأخرات' };
 
     document.querySelectorAll('.nav-item:not(#change-password-nav)').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1740,8 +1390,7 @@
 
     function switchView(view) {
       state.view = view;
-      document.querySelectorAll('.nav-item:not(#change-password-nav)').forEach(b => b.classList.toggle('active', b
-        .dataset.view === view));
+      document.querySelectorAll('.nav-item:not(#change-password-nav)').forEach(b => b.classList.toggle('active', b.dataset.view === view));
       document.querySelectorAll('.view').forEach(v => v.hidden = true);
       document.getElementById('view-title').textContent = titles[view];
       document.getElementById(`view-${view}`).hidden = false;
@@ -1749,6 +1398,7 @@
       if (view === 'customers') loadCustomers();
       if (view === 'plans') loadPlans();
       if (view === 'circles') loadCircles();
+      if (view === 'settings') loadSettings();
       if (view === 'overdue') loadOverdue();
     }
 
@@ -1764,29 +1414,10 @@
 
     function updateOverdueBadge(count) {
       const badge = document.getElementById('overdue-badge');
-      const navItem = document.querySelector('[data-view="overdue"]');
-      if (count > 0) {
-        badge.hidden = false;
-        badge.textContent = count;
-        if (navItem) {
-          navItem.style.color = '#ff6b6b';
-          const icon = navItem.querySelector('.nav-icon');
-          if (icon) icon.style.color = '#ff6b6b';
-        }
-      } else {
-        badge.hidden = true;
-        if (navItem) {
-          navItem.style.color = '';
-          const icon = navItem.querySelector('.nav-icon');
-          if (icon) icon.style.color = '';
-        }
-      }
+      if (count > 0) { badge.hidden = false; badge.textContent = count; } else { badge.hidden = true; }
     }
 
-    // ========================================================================
-    // ==================== DASHBOARD =======================================
-    // ========================================================================
-
+    // ========== DASHBOARD ==========
     async function loadDashboard() {
       const el = document.getElementById('view-dashboard');
       el.innerHTML = `<p style="color:var(--text-muted)">جاري التحميل...</p>`;
@@ -1806,52 +1437,38 @@
         let overdueAmount = 0;
         let dueSoonCount = 0;
         let dueSoonAmount = 0;
-        let collectedThisMonth = 0;
-        let totalCollected = 0;
-        let totalIncome = 0;
-        let partialPayments = 0;
+        let collectedThisMonth = 0; // هذا سيظل يحسب الأقساط التي أصبحت مدفوعة بالكامل في الشهر الحالي وكانت مستحقة فيه.
         const currentMonth = today.substring(0, 7);
         const upcoming = [];
 
         installments.forEach(inst => {
           const plan = plans.find(p => p.id === inst.plan_id);
           const cust = customers.find(c => c && c.id == (plan ? plan.customer_id : null));
-          const custName = cust ? cust.name : 'عميل غير معروف';
-          const custPhone = cust ? cust.phone : '';
-          const prodName = plan ? plan.product_name : '';
+          const custName = cust ? cust.name : 'عميل غير معروف'; //
+          const custPhone = cust ? cust.phone : ''; //
+          const prodName = plan ? plan.product_name : ''; //
 
-          if (inst.paid) {
-            const paidAmt = inst.paid_amount || inst.amount;
-            totalCollected += paidAmt;
-            if (inst.paid_date && inst.paid_date.startsWith(currentMonth)) {
-              collectedThisMonth += paidAmt;
-            }
-          } else {
-            const remaining = inst.amount - (inst.paid_amount || 0);
+          const remaining = inst.amount - (inst.paid_amount || 0);
+
+          // تحصيل الشهر الحالي: الأقساط التي أصبحت مدفوعة بالكامل في هذا الشهر وكانت مستحقة فيه
+          if (inst.paid_amount >= inst.amount && inst.paid_date && inst.paid_date.startsWith(currentMonth) && inst.due_date.startsWith(currentMonth)) {
+            collectedThisMonth += inst.amount;
+          }
+
+          // حساب المستحق والمتأخر والقريب الاستحقاق بناءً على المبلغ المتبقي
+          if (remaining > 0) {
             totalOutstanding += remaining;
-            if (inst.paid_amount && inst.paid_amount > 0) {
-              partialPayments++;
-            }
-
             if (inst.due_date < today) {
               overdueCount++;
               overdueAmount += remaining;
-              upcoming.push({
-                ...inst, customer_name: custName, product_name: prodName, phone: custPhone,
-                remaining: remaining
-              });
+              upcoming.push({ ...inst, customer_name: custName, product_name: prodName, phone: custPhone, remaining_amount: remaining });
             } else if (inst.due_date <= sevenDaysStr) {
               dueSoonCount++;
               dueSoonAmount += remaining;
-              upcoming.push({
-                ...inst, customer_name: custName, product_name: prodName, phone: custPhone,
-                remaining: remaining
-              });
+              upcoming.push({ ...inst, customer_name: custName, product_name: prodName, phone: custPhone, remaining_amount: remaining });
             }
           }
         });
-
-        totalIncome = totalCollected + (await getPendingIncome());
 
         upcoming.sort((a, b) => a.due_date.localeCompare(b.due_date));
         updateOverdueBadge(overdueCount);
@@ -1877,79 +1494,33 @@
               <div class="kpi-sub">بقيمة ${fmt(overdueAmount)} ج.م</div>
             </div>
           </div>
-
-          <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
-            <div class="kpi-card" style="background:var(--primary-tint); border-color:var(--primary);">
-              <div class="kpi-label">💰 إجمالي المحصل (نقداً)</div>
-              <div class="kpi-value num primary">${fmt(totalCollected)}</div>
-              <div class="kpi-sub">جنيه</div>
-            </div>
-            <div class="kpi-card" style="background:#FFF8E7; border-color:var(--amber);">
-              <div class="kpi-label">📊 إجمالي الدخل</div>
-              <div class="kpi-value num amber">${fmt(totalIncome)}</div>
-              <div class="kpi-sub">جنيه (محصل + متوقع)</div>
-            </div>
-            <div class="kpi-card" style="background:var(--danger-tint); border-color:var(--danger);">
-              <div class="kpi-label">📉 الفرق (المستحق)</div>
-              <div class="kpi-value num danger">${fmt(totalOutstanding)}</div>
-              <div class="kpi-sub">جنيه متبقي للتحصيل</div>
-            </div>
-          </div>
-
-          ${partialPayments > 0 ? `
-          <div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-            <div class="kpi-card" style="background:#FFF3E0; border-color:var(--amber);">
-              <div class="kpi-label">🔄 دفعات جزئية</div>
-              <div class="kpi-value num amber">${partialPayments}</div>
-              <div class="kpi-sub">أقساط مدفوعة جزئياً</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">📅 تحصيل الشهر الحالي</div>
-              <div class="kpi-value num primary">${fmt(collectedThisMonth)}</div>
-              <div class="kpi-sub">جنيه</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">⏰ مستحق خلال 7 أيام</div>
-              <div class="kpi-value num amber">${dueSoonCount}</div>
-              <div class="kpi-sub">بقيمة ${fmt(dueSoonAmount)} ج.م</div>
-            </div>
-          </div>
-          ` : `
           <div class="kpi-grid" style="grid-template-columns: 1fr 1fr;">
             <div class="kpi-card">
-              <div class="kpi-label">📅 تحصيل الشهر الحالي</div>
-              <div class="kpi-value num primary">${fmt(collectedThisMonth)}</div>
-              <div class="kpi-sub">جنيه</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">⏰ مستحق خلال 7 أيام</div>
+              <div class="kpi-label">مستحق خلال 7 أيام</div>
               <div class="kpi-value num amber">${dueSoonCount}</div>
               <div class="kpi-sub">بقيمة ${fmt(dueSoonAmount)} ج.م</div>
             </div>
+            <div class="kpi-card">
+              <div class="kpi-label">تحصيل الشهر الحالي</div>
+              <div class="kpi-value num primary">${fmt(collectedThisMonth)}</div>
+              <div class="kpi-sub">جنيه</div>
+            </div>
           </div>
-          `}
-
           <div class="panel">
             <div class="panel-header"><h2>أقرب الأقساط المستحقة</h2></div>
             <div class="panel-body">
               <div class="row-list">
                 ${upcoming.length ? upcoming.slice(0, 10).map(i => {
           const isOverdue = i.due_date < todayStr();
-          const isPartial = i.paid_amount && i.paid_amount > 0;
-          const remaining = i.remaining || i.amount;
           return `
                     <div class="row-item">
                       <div class="row-main">
                         <div class="row-title">${i.customer_name} — ${i.product_name}</div>
-                        <div class="row-sub">قسط رقم ${i.seq} · استحقاق ${i.due_date} ${i.phone ? '· ' + i.phone : ''}
-                          ${isPartial ? `· دفع ${fmt(i.paid_amount)} من ${fmt(i.amount)}` : ''}
-                        </div>
+                        <div class="row-sub">قسط رقم ${i.seq} · استحقاق ${i.due_date} ${i.phone ? '· ' + i.phone : ''}</div>
                       </div>
-                      <span class="pill ${isOverdue ? 'pill-danger' : (isPartial ? 'pill-partial' : 'pill-warn')}">
-                        ${isOverdue ? 'متأخر' : (isPartial ? 'مدفوع جزئياً' : 'مستحق')}
-                      </span>
-                      <div class="row-amount num">${fmt(remaining)} ج.م</div>
-                      <button class="btn btn-primary btn-sm" onclick="openPaymentModal(${i.id}, '${state.view}')">تسجيل الدفع</button>
+                      <span class="pill ${isOverdue ? 'pill-danger' : 'pill-warn'}">${isOverdue ? 'متأخر' : 'مستحق'}</span>
+                      <div class="row-amount num">${fmt(i.remaining_amount)} ج.م</div>
+                      <button class="btn btn-primary btn-sm" onclick="payInstallment(${i.id}, '${state.view}')">دفع</button>
                     </div>
                   `;
         }).join('') : emptyRow('مفيش أقساط مستحقة حاليًا')}
@@ -1962,161 +1533,7 @@
       }
     }
 
-    async function getPendingIncome() {
-      try {
-        const installments = await db.getAll('installments');
-        let pending = 0;
-        installments.forEach(i => {
-          if (!i.paid) {
-            pending += i.amount - (i.paid_amount || 0);
-          }
-        });
-        return pending;
-      } catch {
-        return 0;
-      }
-    }
-
-    // ========================================================================
-    // ==================== PAYMENT MODAL ===================================
-    // ========================================================================
-
-    function openPaymentModal(instId, fromView, planId) {
-      openModal(`
-        <h2>💰 تسجيل الدفع</h2>
-        <div id="payment-error"></div>
-        <div class="form-group">
-          <label>المبلغ المدفوع *</label>
-          <input type="number" id="payment-amount" step="0.01" min="0.01" placeholder="أدخل المبلغ المدفوع">
-          <div class="form-hint">أدخل المبلغ الذي سيدفعه العميل الآن</div>
-        </div>
-        <div class="form-group">
-          <label>ملاحظات</label>
-          <textarea id="payment-note" rows="2" placeholder="ملاحظات عن الدفع (اختياري)"></textarea>
-        </div>
-        <div class="modal-close-row">
-          <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
-          <button class="btn btn-primary" id="confirm-payment-btn">تأكيد الدفع</button>
-        </div>
-      `);
-
-      document.getElementById('confirm-payment-btn').addEventListener('click', async () => {
-        const amount = parseFloat(document.getElementById('payment-amount').value);
-        const note = document.getElementById('payment-note').value.trim();
-        const errBox = document.getElementById('payment-error');
-
-        if (!amount || amount <= 0) {
-          errBox.innerHTML = `<div class="form-error">❌ أدخل مبلغ صحيح أكبر من صفر</div>`;
-          return;
-        }
-
-        await processPartialPayment(instId, amount, note, fromView, planId);
-      });
-    }
-
-    // ========================================================================
-    // ==================== PARTIAL PAYMENT PROCESSING (المعدلة) ===========
-    // ========================================================================
-
-    async function processPartialPayment(instId, paidAmount, note, fromView, planId) {
-      try {
-        const inst = await db.getById('installments', instId);
-        const plan = await db.getById('plans', inst.plan_id);
-        const cust = await db.getById('customers', plan.customer_id);
-
-        const totalDue = inst.amount;
-        const alreadyPaid = inst.paid_amount || 0;
-        const remainingAfter = totalDue - (alreadyPaid + paidAmount);
-
-        // تسجيل تاريخ الدفع
-        const paymentRecord = {
-          date: todayStr(),
-          amount: paidAmount,
-          note: note || 'دفع',
-          remaining_after: Math.max(0, remainingAfter),
-          is_full: remainingAfter <= 0
-        };
-
-        inst.payment_history = inst.payment_history || [];
-        inst.payment_history.push(paymentRecord);
-        inst.paid_amount = (inst.paid_amount || 0) + paidAmount;
-        inst.last_payment_date = todayStr();
-
-        // الحالة الجديدة: القسط الحالي يتقفل ويتحول لمدفوع كاملاً
-        // والمتبقي يترحل للقسط التالي
-        inst.paid = true;
-        inst.paid_date = todayStr();
-        inst.remaining_balance = 0;
-        inst.has_outstanding_balance = false;
-        await db.update('installments', inst);
-
-        // إذا كان فيه متبقي
-        if (remainingAfter > 0) {
-          // البحث عن القسط التالي غير المدفوع
-          const allInsts = await db.getAll('installments');
-          const nextInst = allInsts
-            .filter(i => i.plan_id === inst.plan_id && i.seq > inst.seq && !i.paid)
-            .sort((a, b) => a.seq - b.seq)[0];
-
-          if (nextInst) {
-            // إضافة المتبقي للقسط التالي
-            nextInst.amount = nextInst.amount + remainingAfter;
-            nextInst.has_deferred = true;
-            nextInst.deferred_from = inst.seq;
-            nextInst.deferred_amount = remainingAfter;
-            await db.update('installments', nextInst);
-
-            showToast(`✅ تم دفع ${fmt(paidAmount)} ج.م، وترحيل ${fmt(remainingAfter)} ج.م للقسط ${nextInst.seq}`);
-            showInAppNotification(
-              `🔄 ${cust?.name || 'عميل'}\nتم دفع ${fmt(paidAmount)} ج.م\nتم ترحيل ${fmt(remainingAfter)} ج.م للقسط ${nextInst.seq}`,
-              'warning',
-              8000
-            );
-          } else {
-            // مفيش قسط تالي - يفضل رصيد معلق للعميل
-            inst.paid = false; // نرجعها غير مدفوع لأن فيه رصيد معلق
-            inst.remaining_balance = remainingAfter;
-            inst.has_outstanding_balance = true;
-            await db.update('installments', inst);
-
-            showToast(`⚠️ تم دفع ${fmt(paidAmount)} ج.م، باقي ${fmt(remainingAfter)} ج.م رصيد معلق`);
-            showInAppNotification(
-              `⚠️ ${cust?.name || 'عميل'}\nمتبقي ${fmt(remainingAfter)} ج.م كرصيد معلق`,
-              'warning',
-              8000
-            );
-          }
-        } else {
-          // دفع كامل بدون متبقي
-          showToast(`✅ تم تسجيل الدفع كاملاً (${fmt(paidAmount)} ج.م)`);
-          showInAppNotification(
-            `✅ ${cust?.name || 'عميل'}\nتم دفع ${fmt(paidAmount)} ج.م بالكامل\n${plan?.product_name || ''}`,
-            'success'
-          );
-        }
-
-        // إغلاق المودال وتحديث العرض
-        closeModal();
-
-        if (fromView === 'dashboard') loadDashboard();
-        else if (fromView === 'plans') loadPlans();
-        else if (fromView === 'overdue') loadOverdue();
-        else if (fromView === 'plan-detail' || planId) {
-          if (planId) openPlanDetail(planId);
-          else openPlanDetail(inst.plan_id);
-        } else {
-          loadDashboard();
-        }
-
-      } catch (err) {
-        showToast('❌ خطأ أثناء تسجيل الدفع: ' + err.message);
-      }
-    }
-
-    // ========================================================================
-    // ==================== CUSTOMERS =======================================
-    // ========================================================================
-
+    // ========== CUSTOMERS ==========
     async function loadCustomers(q = '') {
       const el = document.getElementById('view-customers');
       el.innerHTML = `
@@ -2153,16 +1570,13 @@
           const custPlans = plans.filter(p => p.customer_id == c.id);
           let overdueCount = 0;
           let balanceDue = 0;
-          let partialCount = 0;
 
           custPlans.forEach(p => {
             const pInsts = installments.filter(i => i.plan_id == p.id);
             pInsts.forEach(i => {
               if (!i.paid) {
-                const remaining = i.amount - (i.paid_amount || 0);
-                balanceDue += remaining;
+                balanceDue += i.amount;
                 if (i.due_date < today) overdueCount++;
-                if (i.paid_amount && i.paid_amount > 0) partialCount++;
               }
             });
           });
@@ -2171,15 +1585,11 @@
             <div class="row-item" style="cursor:pointer" onclick="openCustomerDetail(${c.id})">
               <div class="row-main">
                 <div class="row-title">${c.name}</div>
-                <div class="row-sub">${c.phone || 'بدون رقم'} · ${custPlans.length} خطة
-                  ${partialCount > 0 ? ` · 🟡 ${partialCount} دفعة جزئية` : ''}
-                </div>
+                <div class="row-sub">${c.phone || 'بدون رقم'} · ${custPlans.length} خطة</div>
               </div>
-              ${overdueCount > 0 ? `<span class="pill pill-danger">${overdueCount} متأخر</span>` :
-              partialCount > 0 ? `<span class="pill pill-partial">دفع جزئي</span>` :
-                `<span class="pill pill-ok">منتظم</span>`}
+              ${overdueCount > 0 ? `<span class="pill pill-danger">${overdueCount} متأخر</span>` : `<span class="pill pill-ok">منتظم</span>`}
               <div class="row-amount num">${fmt(balanceDue)} ج.م</div>
-              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); openPlanForm(${c.id})">+ خطة</button>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); openPlanForm(${c.id})">+ خطة</button> <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); sendWhatsAppReminder('${c.phone}', 'مرحباً ${c.name}، لديك أقساط مستحقة/متأخرة بقيمة ${fmt(balanceDue)} ج.م. يرجى مراجعة حسابك. شكراً.')">واتساب</button>
             </div>
           `;
         }).join('') : emptyRow('مفيش عملاء لسه، ابدأ بإضافة عميل جديد');
@@ -2201,22 +1611,16 @@
       const allInsts = await db.getAll('installments');
       const today = todayStr();
 
-      let totalPaid = 0,
-        totalRemaining = 0,
-        overdueTotal = 0,
-        partialTotal = 0;
+      let totalPaid = 0, totalRemaining = 0, overdueTotal = 0;
 
       const plansWithInsts = custPlans.map(p => {
         const pInsts = allInsts.filter(i => i.plan_id == p.id).sort((a, b) => a.seq - b.seq);
         pInsts.forEach(i => {
-          const paidAmt = i.paid_amount || 0;
-          if (i.paid) {
-            totalPaid += paidAmt || i.amount;
-          } else {
-            const remaining = i.amount - paidAmt;
+          totalPaid += (i.paid_amount || 0);
+          const remaining = i.amount - (i.paid_amount || 0);
+          if (remaining > 0) {
             totalRemaining += remaining;
             if (i.due_date < today) overdueTotal += remaining;
-            if (paidAmt > 0) partialTotal += paidAmt;
           }
         });
         return { ...p, installments: pInsts };
@@ -2224,106 +1628,43 @@
 
       const plansHtml = plansWithInsts.length ? plansWithInsts.map(p => {
         const paidCount = p.installments.filter(i => i.paid).length;
-        const partialCount = p.installments.filter(i => !i.paid && i.remaining_balance && i.remaining_balance > 0).length;
-        const planPaid = p.installments.filter(i => i.paid).reduce((s, i) => s + (i.paid_amount || i.amount), 0);
-        const planPartial = p.installments.filter(i => !i.paid && i.paid_amount).reduce((s, i) => s + (i.paid_amount || 0),
-          0);
-        const planRemaining = p.installments.filter(i => !i.paid).reduce((s, i) => s + (i.amount - (i.paid_amount || 0)), 0);
-
+        const planPaid = p.installments.reduce((s, i) => s + (i.paid_amount || 0), 0);
+        const planRemaining = p.installments.reduce((s, i) => s + (i.amount - (i.paid_amount || 0)), 0);
         const segs = p.installments.map(i => {
           let cls = 'inst-seg';
-          if (i.paid) cls += ' paid';
-          else if (i.due_date < today) cls += ' overdue';
-          else if (i.remaining_balance && i.remaining_balance > 0) cls += ' partial';
+          if (i.paid_amount >= i.amount) cls += ' paid'; // مدفوع بالكامل
+          else if (i.paid_amount > 0) cls += ' warn'; // مدفوع جزئياً
+          else if (i.due_date < today) cls += ' overdue'; // متأخر وغير مدفوع
           return `<div class="${cls}"></div>`;
         }).join('');
 
-        const rows = p.installments.map(i => {
-          const paidAmt = i.paid_amount || 0;
-          const hasDeferred = i.has_deferred && i.deferred_amount > 0;
-          const isDeferredFrom = i.deferred_from;
-          const hasRemaining = i.remaining_balance && i.remaining_balance > 0;
-
-          // تحديد حالة القسط
-          let statusText = '';
-          let statusClass = '';
-
-          if (i.paid) {
-            if (hasDeferred) {
-              statusText = `✅ مدفوع (مرحل ${fmt(i.deferred_amount)})`;
-              statusClass = 'pill-ok';
-            } else if (isDeferredFrom) {
-              statusText = `✅ مدفوع (مرحل من قسط ${isDeferredFrom})`;
-              statusClass = 'pill-ok';
-            } else {
-              statusText = '✅ مدفوع';
-              statusClass = 'pill-ok';
-            }
-          } else if (hasRemaining) {
-            statusText = '🟡 رصيد معلق';
-            statusClass = 'pill-partial';
-          } else if (i.due_date < today) {
-            statusText = 'متأخر';
-            statusClass = 'pill-danger';
-          } else {
-            statusText = 'مستحق';
-            statusClass = 'pill-muted';
-          }
-
-          // بناء النص الفرعي
-          let subText = `استحقاق ${i.due_date}`;
-          if (i.paid) {
-            subText += ` · ✅ دُفع كاملاً`;
-            if (i.paid_date) subText += ` في ${i.paid_date}`;
-            if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
-            if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
-          } else {
-            if (hasRemaining) subText += ` · ⚠️ متبقي ${fmt(i.remaining_balance)}`;
-            if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
-            if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
-          }
-
-          // المبلغ المعروض
-          let displayAmount = '';
-          if (i.paid) {
-            displayAmount = fmt(i.paid_amount || i.amount);
-          } else {
-            displayAmount = fmt(i.amount);
-          }
-
-          // عنوان القسط
-          let titleText = `قسط ${i.seq}`;
-          if (hasDeferred) titleText += ` 🔄 (مرحل)`;
-          if (isDeferredFrom) titleText += ` 📌 (مرحل من قسط ${isDeferredFrom})`;
-          if (hasRemaining) titleText += ` ⚠️ (رصيد معلق)`;
-
-          return `
-            <div class="row-item">
-              <div class="row-main">
-                <div class="row-title">${titleText}</div>
-                <div class="row-sub">${subText}</div>
-              </div>
-              <span class="pill ${statusClass}">${statusText}</span>
-              <div class="row-amount num">${displayAmount} ج.م</div>
-              ${i.paid
-              ? `<button class="btn btn-outline btn-sm" onclick="unpayInstallmentFromCustomer(${i.id}, ${id})">تراجع</button>`
-              : `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${i.id}, 'customer-detail', ${p.id})">تسجيل الدفع</button>`}
+        const rows = p.installments.map(i => `
+          <div class="row-item">
+            <div class="row-main">
+              <div class="row-title">قسط ${i.seq}</div>
+              <div class="row-sub">استحقاق ${i.due_date}${i.paid ? ' · دُفع في ' + i.paid_date : ''}</div>
             </div>
-          `;
-        }).join('');
+            <span class="pill ${i.paid ? 'pill-ok' : (i.due_date < today ? 'pill-danger' : 'pill-muted')}">
+              ${i.paid ? 'مدفوع' : (i.due_date < today ? 'متأخر' : 'مستحق')}
+            </span>
+            <div class="row-amount num">${fmt(i.amount)} ج.م</div>
+            ${i.paid
+            ? `<button class="btn btn-outline btn-sm" onclick="unpayInstallmentFromCustomer(${i.id}, ${id})">تراجع</button>`
+            : `<button class="btn btn-primary btn-sm" onclick="payInstallmentFromCustomer(${i.id}, ${id})">دفع</button>`}
+          </div>
+        `).join('');
 
         return `
           <div class="panel" style="margin-top:14px; box-shadow:none; border:1px solid var(--border);">
             <div class="panel-header" style="padding:12px 16px;">
               <h2 style="font-size:14px;">${p.product_name}</h2>
-              <span class="pill pill-muted">${paidCount}/${p.installments.length} مدفوعة
-                ${partialCount > 0 ? ` · 🟡 ${partialCount} رصيد معلق` : ''}</span>
+              <span class="pill pill-muted">${paidCount}/${p.installments.length} مدفوعة</span>
             </div>
             <div style="padding:12px 16px 4px;">
               <div class="inst-track" style="margin-bottom:10px;">${segs}</div>
               <div style="display:flex; flex-wrap:wrap; gap:16px; font-size:12.5px; color:var(--text-muted); margin-bottom:6px;">
                 <span>الإجمالي: <b class="num" style="color:var(--text);">${fmt(p.total_payable || p.total_amount)} ج.م</b></span>
-                <span>مدفوع: <b class="num" style="color:var(--primary-dark);">${fmt(planPaid + planPartial)} ج.م</b></span>
+                <span>مدفوع: <b class="num" style="color:var(--primary-dark);">${fmt(planPaid)} ج.م</b></span>
                 <span>باقي: <b class="num" style="color:var(--danger);">${fmt(planRemaining)} ج.م</b></span>
               </div>
             </div>
@@ -2332,24 +1673,9 @@
         `;
       }).join('') : `<p style="color:var(--text-muted); padding:16px 0;">مفيش خطط تقسيط لسه لهذا العميل.</p>`;
 
-      let warningNote = '';
-      if (overdueTotal > 0) {
-        warningNote =
-          `<div class="form-error" style="background:var(--danger-tint); color:var(--danger); margin-bottom:12px;">
-          ⚠️ ملاحظة: هذا العميل عليه مبلغ ${fmt(overdueTotal)} ج.م متأخر من شهر سابق
-        </div>`;
-      } else if (partialTotal > 0) {
-        warningNote =
-          `<div class="form-error" style="background:var(--amber-tint); color:var(--amber); margin-bottom:12px;">
-          🟡 ملاحظة: هذا العميل لديه دفعات جزئية بقيمة ${fmt(partialTotal)} ج.م
-        </div>`;
-      }
-
       openModal(`
         <h2>${c.name}</h2>
         <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">${c.phone || 'بدون رقم'} ${c.address ? ' · ' + c.address : ''}</p>
-
-        ${warningNote}
 
         <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:6px;">
           <div class="kpi-card" style="padding:12px;">
@@ -2376,6 +1702,7 @@
       `);
     }
 
+    // ========== DELETE CUSTOMER WITH CONFIRMATION ==========
     async function deleteCustomer(id) {
       const customer = await db.getById('customers', id);
       if (!customer) return;
@@ -2405,41 +1732,26 @@
       }
     }
 
+    async function payInstallmentFromCustomer(instId, customerId) {
+      // هذه الدالة لم تعد تستخدم مباشرة، تم استبدالها بـ openPayInstallmentModal ثم processInstallmentPayment
+      // ولكن إذا كنت تريد الاحتفاظ بها كاختصار لدفع المبلغ بالكامل، يمكن تعديلها كالتالي:
+      try {
+        const inst = await db.getById('installments', instId);
+        const amountToPay = inst.amount - (inst.paid_amount || 0);
+        if (amountToPay > 0) {
+          await processInstallmentPayment(instId, amountToPay, 'customer-detail', customerId);
+        }
+      } catch (err) {
+        showToast(err.message || err);
+      }
+    }
+
     async function unpayInstallmentFromCustomer(instId, customerId) {
       try {
         const inst = await db.getById('installments', instId);
-
-        // إذا كان القسط مدفوع ومرحل منه، نرجع المبلغ المرحل للقسط الأصلي
-        if (inst.has_deferred && inst.deferred_amount > 0 && inst.deferred_from) {
-          // البحث عن القسط المرحل إليه
-          const allInsts = await db.getAll('installments');
-          const nextInst = allInsts
-            .filter(i => i.plan_id === inst.plan_id && i.deferred_from === inst.seq)
-            .sort((a, b) => a.seq - b.seq)[0];
-
-          if (nextInst) {
-            // إزالة المبلغ المرحل من القسط التالي
-            nextInst.amount = nextInst.amount - inst.deferred_amount;
-            nextInst.has_deferred = false;
-            nextInst.deferred_from = null;
-            nextInst.deferred_amount = 0;
-            await db.update('installments', nextInst);
-          }
-        }
-
-        // إلغاء دفع القسط الحالي
-        inst.paid = false;
+        inst.paid_amount = 0; // تصفير المبلغ المدفوع
         inst.paid_date = null;
-        inst.paid_amount = 0;
-        inst.remaining_balance = inst.amount;
-        inst.has_deferred = false;
-        inst.deferred_from = null;
-        inst.deferred_amount = 0;
-        inst.has_outstanding_balance = false;
-        inst.payment_history = [];
-
         await db.update('installments', inst);
-
         showToast('تم التراجع عن الدفع');
         openCustomerDetail(customerId);
         if (state.view === 'dashboard') loadDashboard();
@@ -2452,13 +1764,13 @@
       openModal(`
         <h2>عميل جديد</h2>
         <div id="form-error"></div>
-        <div class="form-group"><label>الاسم *</label><input id="c-name" type="text" placeholder="أدخل اسم العميل"></div>
+        <div class="form-group"><label>الاسم *</label><input id="c-name" type="text"></div>
         <div class="form-row">
-          <div class="form-group"><label>الموبايل</label><input id="c-phone" type="text" placeholder="مثال: 0123456789"></div>
-          <div class="form-group"><label>الرقم القومي</label><input id="c-nid" type="text" placeholder="الرقم القومي"></div>
+          <div class="form-group"><label>الموبايل</label><input id="c-phone" type="text"></div>
+          <div class="form-group"><label>الرقم القومي</label><input id="c-nid" type="text"></div>
         </div>
-        <div class="form-group"><label>العنوان</label><input id="c-address" type="text" placeholder="العنوان"></div>
-        <div class="form-group"><label>ملاحظات</label><textarea id="c-notes" rows="2" placeholder="ملاحظات إضافية"></textarea></div>
+        <div class="form-group"><label>العنوان</label><input id="c-address" type="text"></div>
+        <div class="form-group"><label>ملاحظات</label><textarea id="c-notes" rows="2"></textarea></div>
         <div class="modal-close-row">
           <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
           <button class="btn btn-primary" id="save-customer-btn">حفظ</button>
@@ -2466,10 +1778,7 @@
       `);
       document.getElementById('save-customer-btn').addEventListener('click', async () => {
         const name = document.getElementById('c-name').value.trim();
-        if (!name) {
-          document.getElementById('form-error').innerHTML =
-            `<div class="form-error">اسم العميل مطلوب</div>`; return;
-        }
+        if (!name) { document.getElementById('form-error').innerHTML = `<div class="form-error">اسم العميل مطلوب</div>`; return; }
         try {
           await db.add('customers', {
             name,
@@ -2488,10 +1797,7 @@
       });
     }
 
-    // ========================================================================
-    // ==================== PLANS ===========================================
-    // ========================================================================
-
+    // ========== PLANS ==========
     async function loadPlans() {
       const el = document.getElementById('view-plans');
       el.innerHTML = `
@@ -2514,24 +1820,16 @@
           const custName = cust ? cust.name : 'عميل غير معروف';
           const pInsts = installments.filter(i => i.plan_id == p.id);
           const paidCount = pInsts.filter(i => i.paid).length;
-          const partialCount = pInsts.filter(i => !i.paid && i.remaining_balance && i.remaining_balance > 0).length;
           const totalCount = pInsts.length;
-          const remainingAmount = pInsts.filter(i => !i.paid).reduce((s, i) => s + (i.amount - (i.paid_amount || 0)), 0);
+          const remainingAmount = pInsts.filter(i => !i.paid).reduce((s, i) => s + i.amount, 0);
 
           return `
             <div class="row-item" style="cursor:pointer" onclick="openPlanDetail(${p.id})">
               <div class="row-main">
                 <div class="row-title">${custName} — ${p.product_name}</div>
-                <div class="row-sub">${paidCount}/${totalCount} أقساط مدفوعة
-                  ${partialCount > 0 ? ` · 🟡 ${partialCount} رصيد معلق` : ''}
-                  · بدأت ${p.start_date}</div>
+                <div class="row-sub">${paidCount}/${totalCount} أقساط مدفوعة · بدأت ${p.start_date}</div>
                 <div class="inst-track" style="margin-top:6px; max-width:220px;">
-                  ${pInsts.map(i => {
-            let cls = 'inst-seg';
-            if (i.paid) cls += ' paid';
-            else if (i.remaining_balance && i.remaining_balance > 0) cls += ' partial';
-            return `<div class="${cls}"></div>`;
-          }).join('')}
+                  ${'<div class="inst-seg paid"></div>'.repeat(paidCount)}${'<div class="inst-seg upcoming"></div>'.repeat(totalCount - paidCount)}
                 </div>
               </div>
               <div class="row-amount num">${fmt(remainingAmount)} ج.م متبقي</div>
@@ -2545,24 +1843,22 @@
 
     async function openPlanForm(customerId) {
       const customers = await db.getAll('customers');
-      const options = customers.map(c =>
-        `<option value="${c.id}" ${c.id == customerId ? 'selected' : ''}>${c.name} (${c.phone || 'بدون رقم'})</option>`
-      ).join('');
+      const options = customers.map(c => `<option value="${c.id}" ${c.id == customerId ? 'selected' : ''}>${c.name} (${c.phone || 'بدون رقم'})</option>`).join('');
       openModal(`
         <h2>خطة تقسيط جديدة</h2>
         <div id="form-error"></div>
         <div class="form-group"><label>العميل *</label><select id="p-customer">${options || '<option value="">لا يوجد عملاء - أضف عميل الأول</option>'}</select></div>
-        <div class="form-group"><label>اسم المنتج / السلعة *</label><input id="p-product" type="text" placeholder="مثال: تلفزيون - ثلاجة"></div>
+        <div class="form-group"><label>اسم المنتج / السلعة *</label><input id="p-product" type="text"></div>
         <div class="form-row">
-          <div class="form-group"><label>السعر نقدًا *</label><input id="p-total" type="number" min="0" placeholder="السعر الكامل"></div>
-          <div class="form-group"><label>المقدم</label><input id="p-down" type="number" min="0" placeholder="المقدم (اختياري)"></div>
+          <div class="form-group"><label>السعر نقدًا *</label><input id="p-total" type="number" min="0"></div>
+          <div class="form-group"><label>المقدم</label><input id="p-down" type="number" min="0" value="0"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>عدد الأقساط *</label><input id="p-count" type="number" min="1" placeholder="عدد الأقساط"></div>
+          <div class="form-group"><label>عدد الأقساط *</label><input id="p-count" type="number" min="1" value="6"></div>
           <div class="form-group"><label>دورية السداد (أيام)</label><input id="p-freq" type="number" min="1" value="30"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>نسبة الفايدة (%)</label><input id="p-profit" type="number" min="0" step="0.1" placeholder="نسبة الفائدة"></div>
+          <div class="form-group"><label>نسبة الفايدة (%)</label><input id="p-profit" type="number" min="0" step="0.1" value="35"></div>
           <div class="form-group"><label>تاريخ بداية الخطة *</label><input id="p-start" type="date" value="${todayStr()}"></div>
         </div>
         <div class="summary-box" id="p-preview" style="margin-bottom:14px;"></div>
@@ -2589,8 +1885,7 @@
         `;
       }
       ['p-total', 'p-down', 'p-count', 'p-profit'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', updatePreview);
+        document.getElementById(id).addEventListener('input', updatePreview);
       });
       updatePreview();
 
@@ -2635,24 +1930,16 @@
               plan_id: planId,
               seq: i,
               amount: instAmount,
-              original_amount: instAmount,
               due_date: dueDateStr,
+              paid_amount: 0, // تهيئة المبلغ المدفوع بـ 0
               paid: false,
-              paid_date: null,
-              paid_amount: 0,
-              remaining_balance: instAmount,
-              payment_history: [],
-              has_deferred: false,
-              deferred_from: null,
-              deferred_amount: 0,
-              has_outstanding_balance: false
+              paid_date: null
             });
           }
 
           closeModal();
           showToast('تم إنشاء خطة التقسيط');
-          if (state.view === 'plans') loadPlans();
-          else if (state.view === 'dashboard') loadDashboard();
+          if (state.view === 'plans') loadPlans(); else if (state.view === 'dashboard') loadDashboard();
         } catch (err) {
           errBox.innerHTML = `<div class="form-error">${err.message || err}</div>`;
         }
@@ -2667,101 +1954,27 @@
       const pInsts = allInsts.filter(i => i.plan_id == id).sort((a, b) => a.seq - b.seq);
       const today = todayStr();
 
-      // حساب الدفعات الجزئية (الرصيد المعلق)
-      const partials = pInsts.filter(i => !i.paid && i.remaining_balance && i.remaining_balance > 0);
-
-      let warningNote = '';
-      if (partials.length > 0) {
-        warningNote =
-          `<div class="form-error" style="background:var(--amber-tint); color:var(--amber); margin-bottom:12px;">
-          🟡 ملاحظة: يوجد ${partials.length} أقساط عليها رصيد معلق
-        </div>`;
-      }
-
-      const rows = pInsts.map(i => {
-        const paidAmt = i.paid_amount || 0;
-        const hasDeferred = i.has_deferred && i.deferred_amount > 0;
-        const isDeferredFrom = i.deferred_from;
-        const hasRemaining = i.remaining_balance && i.remaining_balance > 0;
-
-        // تحديد حالة القسط
-        let statusText = '';
-        let statusClass = '';
-
-        if (i.paid) {
-          if (hasDeferred) {
-            statusText = `✅ مدفوع (مرحل ${fmt(i.deferred_amount)})`;
-            statusClass = 'pill-ok';
-          } else if (isDeferredFrom) {
-            statusText = `✅ مدفوع (مرحل من قسط ${isDeferredFrom})`;
-            statusClass = 'pill-ok';
-          } else {
-            statusText = '✅ مدفوع';
-            statusClass = 'pill-ok';
-          }
-        } else if (hasRemaining) {
-          statusText = '🟡 رصيد معلق';
-          statusClass = 'pill-partial';
-        } else if (i.due_date < today) {
-          statusText = 'متأخر';
-          statusClass = 'pill-danger';
-        } else {
-          statusText = 'مستحق';
-          statusClass = 'pill-muted';
-        }
-
-        // بناء النص الفرعي
-        let subText = `استحقاق ${i.due_date}`;
-        if (i.paid) {
-          subText += ` · ✅ دُفع كاملاً`;
-          if (i.paid_date) subText += ` في ${i.paid_date}`;
-          if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
-          if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
-        } else {
-          if (hasRemaining) subText += ` · ⚠️ متبقي ${fmt(i.remaining_balance)}`;
-          if (hasDeferred) subText += ` · 📌 مرحل ${fmt(i.deferred_amount)} من قسط ${i.deferred_from}`;
-          if (isDeferredFrom) subText += ` · 📌 تم ترحيل ${fmt(i.deferred_amount)} من قسط ${isDeferredFrom}`;
-        }
-
-        // المبلغ المعروض
-        let displayAmount = '';
-        if (i.paid) {
-          displayAmount = fmt(i.paid_amount || i.amount);
-        } else {
-          displayAmount = fmt(i.amount);
-        }
-
-        // عنوان القسط
-        let titleText = `قسط ${i.seq}`;
-        if (hasDeferred) titleText += ` 🔄 (مرحل)`;
-        if (isDeferredFrom) titleText += ` 📌 (مرحل من قسط ${isDeferredFrom})`;
-        if (hasRemaining) titleText += ` ⚠️ (رصيد معلق)`;
-
-        return `
-          <div class="row-item">
-            <div class="row-main">
-              <div class="row-title">${titleText}</div>
-              <div class="row-sub">${subText}</div>
-            </div>
-            <span class="pill ${statusClass}">${statusText}</span>
-            <div class="row-amount num">${displayAmount} ج.م</div>
-            ${i.paid
-            ? `<button class="btn btn-outline btn-sm" onclick="unpayInstallment(${i.id}, ${id})">تراجع</button>`
-            : `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${i.id}, 'plan-detail', ${id})">تسجيل الدفع</button>`}
-          </div>
-        `;
-      }).join('');
-
       openModal(`
         <h2>${custName} — ${p.product_name}</h2>
         <p style="color:var(--text-muted); font-size:13px; margin-bottom:14px;">
           الإجمالي ${fmt(p.total_amount)} ج.م · المقدم ${fmt(p.down_payment)} ج.م · بدأت ${p.start_date}
         </p>
-
-        ${warningNote}
-
         <div class="row-list" style="border:1px solid var(--border); border-radius:8px; max-height:340px; overflow-y:auto;">
-          ${rows}
+          ${pInsts.map(i => `
+            <div class="row-item">
+              <div class="row-main">
+                <div class="row-title">قسط ${i.seq}</div>
+                <div class="row-sub">استحقاق ${i.due_date}${i.paid ? ' · دُفع في ' + i.paid_date : ''}</div>
+              </div>
+            <span class="pill ${i.paid_amount >= i.amount ? 'pill-ok' : (i.due_date < today && i.paid_amount < i.amount ? 'pill-danger' : (i.paid_amount > 0 ? 'pill-warn' : 'pill-muted'))}">
+              ${i.paid_amount >= i.amount ? 'مدفوع بالكامل' : (i.due_date < today && i.paid_amount < i.amount ? 'متأخر' : (i.paid_amount > 0 ? 'مدفوع جزئياً' : 'مستحق'))}
+              </span>
+            <div class="row-amount num">${fmt(i.amount - (i.paid_amount || 0))} ج.م متبقي</div>
+              ${i.paid
+          ? `<button class="btn btn-outline btn-sm" onclick="unpayInstallment(${i.id}, ${id})">تراجع</button> <button class="btn btn-outline btn-sm" onclick="sendWhatsAppReminder('${cust.phone}', 'مرحباً ${custName}، تذكير بقسط ${p.product_name} رقم ${i.seq} المستحق بتاريخ ${i.due_date} بمبلغ ${fmt(i.amount - (i.paid_amount || 0))} ج.م. يرجى السداد. شكراً.')">واتساب</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="openPayInstallmentModal(${i.id}, 'plan-detail', ${id})">دفع</button> <button class="btn btn-outline btn-sm" onclick="sendWhatsAppReminder('${cust.phone}', 'مرحباً ${custName}، تذكير بقسط ${p.product_name} رقم ${i.seq} المستحق بتاريخ ${i.due_date} بمبلغ ${fmt(i.amount - (i.paid_amount || 0))} ج.م. يرجى السداد. شكراً.')">واتساب</button>`}
+            </div>
+          `).join('')}
         </div>
         <div class="modal-close-row">
           <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
@@ -2769,50 +1982,88 @@
       `);
     }
 
-    async function unpayInstallment(instId, planId) {
+    // دالة جديدة لفتح نافذة إدخال مبلغ الدفع
+    async function openPayInstallmentModal(instId, fromView, parentId = null) {
       try {
         const inst = await db.getById('installments', instId);
+        if (!inst) { showToast('❌ القسط غير موجود'); return; }
 
-        // إذا كان القسط مدفوع ومرحل منه، نرجع المبلغ المرحل للقسط الأصلي
-        if (inst.has_deferred && inst.deferred_amount > 0 && inst.deferred_from) {
-          const allInsts = await db.getAll('installments');
-          const nextInst = allInsts
-            .filter(i => i.plan_id === inst.plan_id && i.deferred_from === inst.seq)
-            .sort((a, b) => a.seq - b.seq)[0];
+        const plan = await db.getById('plans', inst.plan_id);
+        const customer = await db.getById('customers', plan.customer_id);
 
-          if (nextInst) {
-            nextInst.amount = nextInst.amount - inst.deferred_amount;
-            nextInst.has_deferred = false;
-            nextInst.deferred_from = null;
-            nextInst.deferred_amount = 0;
-            await db.update('installments', nextInst);
+        const remainingAmount = inst.amount - (inst.paid_amount || 0);
+
+        openModal(`
+          <h2>تسجيل دفعة للقسط</h2>
+          <div id="payment-form-error"></div>
+          <p style="color:var(--text-muted); font-size:13px; margin-bottom:14px;">
+            العميل: ${customer.name} · المنتج: ${plan.product_name}<br>
+            قسط رقم ${inst.seq} · استحقاق: ${inst.due_date} · المبلغ الأصلي: ${fmt(inst.amount)} ج.م<br>
+            المبلغ المدفوع سابقاً: ${fmt(inst.paid_amount || 0)} ج.م · المتبقي: ${fmt(remainingAmount)} ج.م
+          </p>
+          <div class="form-group">
+            <label>المبلغ المدفوع حالياً *</label>
+            <input type="number" id="amount-to-pay" value="${remainingAmount}" min="0" step="0.01">
+          </div>
+          <div class="modal-close-row">
+            <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+            <button class="btn btn-primary" id="confirm-payment-btn">تأكيد الدفع</button>
+          </div>
+        `);
+
+        document.getElementById('confirm-payment-btn').addEventListener('click', () => {
+          const amountToPay = Number(document.getElementById('amount-to-pay').value);
+          if (isNaN(amountToPay) || amountToPay <= 0) {
+            document.getElementById('payment-form-error').innerHTML = `<div class="form-error">من فضلك أدخل مبلغ صحيح وموجب.</div>`;
+            return;
           }
-        }
+          processInstallmentPayment(instId, amountToPay, fromView, parentId);
+          closeModal();
+        });
+      } catch (err) {
+        showToast('❌ خطأ في فتح نافذة الدفع: ' + (err.message || err));
+      }
+    }
 
-        inst.paid = false;
-        inst.paid_date = null;
-        inst.paid_amount = 0;
-        inst.remaining_balance = inst.amount;
-        inst.has_deferred = false;
-        inst.deferred_from = null;
-        inst.deferred_amount = 0;
-        inst.has_outstanding_balance = false;
-        inst.payment_history = [];
+    // دالة جديدة لمعالجة الدفع بعد إدخال المبلغ
+    async function processInstallmentPayment(id, amountPaid, fromView, parentId) {
+      try {
+        const inst = await db.getById('installments', id);
+        if (!inst) { showToast('❌ القسط غير موجود'); return; }
+
+        // تحديث المبلغ المدفوع وتاريخ الدفع وحالة القسط
+        inst.paid_amount = (inst.paid_amount || 0) + amountPaid;
+        inst.paid_date = todayStr(); // تاريخ آخر دفعة
+        inst.paid = inst.paid_amount >= inst.amount; // يعتبر مدفوعاً بالكامل إذا وصل المبلغ المدفوع أو تجاوز المبلغ الأصلي
 
         await db.update('installments', inst);
+        showToast(`✅ تم تسجيل دفع ${fmt(amountPaid)} ج.م`);
 
-        showToast('تم التراجع عن الدفع');
-        openPlanDetail(planId);
-        if (state.view === 'dashboard') loadDashboard();
+        // تحديث الشاشات ذات الصلة
+        if (fromView === 'customer-detail' && parentId) openCustomerDetail(parentId);
+        else if (fromView === 'plan-detail' && parentId) openPlanDetail(parentId);
+        if (fromView === 'dashboard') loadDashboard();
+        else if (fromView === 'plans') loadPlans();
+        else if (fromView === 'overdue') loadOverdue();
       } catch (err) {
         showToast(err.message || err);
       }
     }
 
-    // ========================================================================
-    // ==================== OVERDUE =========================================
-    // ========================================================================
+    async function unpayInstallment(id, planId) {
+      try {
+        const inst = await db.getById('installments', id);
+        inst.paid_amount = 0; // تصفير المبلغ المدفوع عند التراجع
+        inst.paid_date = null;
+        await db.update('installments', inst);
+        showToast('تم التراجع عن الدفع');
+        openPlanDetail(planId);
+      } catch (err) {
+        showToast(err.message || err);
+      }
+    }
 
+    // ========== OVERDUE ==========
     async function loadOverdue() {
       const el = document.getElementById('view-overdue');
       el.innerHTML = `
@@ -2829,39 +2080,30 @@
 
         const overdue = [];
         installments.forEach(i => {
-          if (!i.paid && i.due_date < today) {
+          if ((i.paid_amount || 0) < i.amount && i.due_date < today) { // إذا لم يتم دفع القسط بالكامل وتاريخ استحقاقه قبل اليوم
             const plan = plans.find(p => p.id == i.plan_id);
             const cust = customers.find(c => c.id == (plan ? plan.customer_id : null));
-            const paidAmt = i.paid_amount || 0;
-            const remaining = i.amount - paidAmt;
             overdue.push({
               ...i,
               customer_name: cust ? cust.name : 'عميل غير معروف',
               product_name: plan ? plan.product_name : '',
-              phone: cust ? cust.phone : '',
-              remaining: remaining,
-              paid_amount: paidAmt,
-              is_partial: paidAmt > 0
+              phone: cust ? cust.phone : ''
+              remaining_amount: i.amount - (i.paid_amount || 0) // المبلغ المتبقي
             });
           }
         });
 
-        overdue.sort((a, b) => a.due_date.localeCompare(b.due_date));
         updateOverdueBadge(overdue.length);
 
         document.getElementById('overdue-list').innerHTML = overdue.length ? overdue.map(i => `
           <div class="row-item">
             <div class="row-main">
               <div class="row-title">${i.customer_name} — ${i.product_name}</div>
-              <div class="row-sub">قسط رقم ${i.seq} · كان مستحق ${i.due_date} ${i.phone ? '· ' + i.phone : ''}
-                ${i.is_partial ? `· 🟡 دفع ${fmt(i.paid_amount)} من ${fmt(i.amount)}` : ''}
-              </div>
+              <div class="row-sub">قسط رقم ${i.seq} · كان مستحق ${i.due_date} ${i.phone ? '· ' + i.phone : ''} · متبقي ${fmt(i.remaining_amount)} ج.م</div>
             </div>
-            <span class="pill ${i.is_partial ? 'pill-partial' : 'pill-danger'}">
-              ${i.is_partial ? 'مدفوع جزئياً' : 'متأخر'}
-            </span>
-            <div class="row-amount num">${fmt(i.remaining)} ج.م</div>
-            <button class="btn btn-primary btn-sm" onclick="openPaymentModal(${i.id}, 'overdue')">تسجيل الدفع</button>
+            <span class="pill pill-danger">متأخر</span>
+            <div class="row-amount num">${fmt(i.remaining_amount)} ج.م</div>
+            <button class="btn btn-primary btn-sm" onclick="openPayInstallmentModal(${i.id}, 'overdue')">دفع</button> <button class="btn btn-outline btn-sm" onclick="sendWhatsAppReminder('${i.phone}', 'مرحباً ${i.customer_name}، تذكير بقسط ${i.product_name} المتأخر بتاريخ ${i.due_date} بمبلغ ${fmt(i.remaining_amount)} ج.م. يرجى السداد. شكراً.')">واتساب</button>
           </div>
         `).join('') : emptyRow('تمام، مفيش أقساط متأخرة حاليًا');
       } catch (err) {
@@ -2869,10 +2111,7 @@
       }
     }
 
-    // ========================================================================
-    // ==================== CIRCLES =========================================
-    // ========================================================================
-
+    // ========== CIRCLES ==========
     let circleMemberRows = 0;
 
     async function loadCircles() {
@@ -2920,8 +2159,8 @@
     function circleMemberRowHtml(idx) {
       return `
         <div class="form-row" id="member-row-${idx}" style="align-items:end;">
-          <div class="form-group"><label>اسم العضو ${idx + 1}</label><input type="text" class="member-name" data-idx="${idx}" placeholder="اسم العضو"></div>
-          <div class="form-group"><label>موبايله</label><input type="text" class="member-phone" data-idx="${idx}" placeholder="رقم الموبايل"></div>
+          <div class="form-group"><label>اسم العضو ${idx + 1}</label><input type="text" class="member-name" data-idx="${idx}"></div>
+          <div class="form-group"><label>موبايله</label><input type="text" class="member-phone" data-idx="${idx}"></div>
         </div>
       `;
     }
@@ -2938,7 +2177,7 @@
         <div id="form-error"></div>
         <div class="form-group"><label>اسم الجمعية *</label><input id="g-name" type="text" placeholder="مثال: جمعية شهر يناير"></div>
         <div class="form-row">
-          <div class="form-group"><label>المبلغ الشهري لكل عضو *</label><input id="g-amount" type="number" min="0" placeholder="المبلغ الشهري"></div>
+          <div class="form-group"><label>المبلغ الشهري لكل عضو *</label><input id="g-amount" type="number" min="0"></div>
           <div class="form-group"><label>دورية الدفع (أيام)</label><input id="g-freq" type="number" min="1" value="30"></div>
         </div>
         <div class="form-group"><label>تاريخ بداية الجمعية *</label><input id="g-start" type="date" value="${todayStr()}"></div>
@@ -2966,8 +2205,7 @@
         })).filter(m => m.name);
 
         if (!name || !monthly_amount || !start_date || membersInputs.length < 2) {
-          errBox.innerHTML =
-            `<div class="form-error">من فضلك أكمل اسم الجمعية والمبلغ والتاريخ، وأضف عضوين على الأقل بالاسم</div>`;
+          errBox.innerHTML = `<div class="form-error">من فضلك أكمل اسم الجمعية والمبلغ والتاريخ، وأضف عضوين على الأقل بالاسم</div>`;
           return;
         }
 
@@ -3040,9 +2278,7 @@
       const cPayouts = allPayouts.filter(p => p.circle_id == id).sort((a, b) => a.turn_order - b.turn_order);
       const today = todayStr();
 
-      const memberCols = cMembers.map(m =>
-        `<th><span class="turn-badge">${m.turn_order}</span><br>${m.customer_name}</th>`
-      ).join('');
+      const memberCols = cMembers.map(m => `<th><span class="turn-badge">${m.turn_order}</span><br>${m.customer_name}</th>`).join('');
 
       const rounds = [...new Set(cPayments.map(p => p.round_number))].sort((a, b) => a - b);
       const paymentRows = rounds.map(round => {
@@ -3140,30 +2376,9 @@
       }
     }
 
-    // ========================================================================
-    // ==================== BACKUP & RESTORE =================================
-    // ========================================================================
-
-    // ----- 1. قاعدة بيانات الملفات المحفوظة داخل التطبيق -----
-    function openFileDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open('MidoFileStore', 1);
-        request.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains('files')) {
-            db.createObjectStore('files', { keyPath: 'name' });
-          }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject('فشل فتح قاعدة الملفات');
-      });
-    }
-
-    // ----- 2. التصدير (النسخة الاحتياطية) -----
+    // ========== BACKUP & RESTORE ==========
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
-        showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
-
         const data = {
           customers: await db.getAll('customers'),
           plans: await db.getAll('plans'),
@@ -3174,309 +2389,83 @@
           circle_payouts: await db.getAll('circle_payouts'),
           exported_at: new Date().toISOString()
         };
-
         const jsonStr = JSON.stringify(data, null, 2);
-        const fileName = `Mido_Backup_${todayStr()}.mido`;
-
-        // حفظ في التطبيق
-        const fileDB = await openFileDB();
-        const tx = fileDB.transaction('files', 'readwrite');
-        const store = tx.objectStore('files');
-        store.put({
-          name: fileName,
-          data: jsonStr,
-          type: 'json',
-          date: todayStr(),
-          size: jsonStr.length
-        });
-        await new Promise((resolve) => tx.oncomplete = resolve);
-
-        showToast('✅ تم حفظ النسخة في التطبيق');
-
-        // تحميل في مجلد التنزيلات
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
+        a.download = `Mido_App_Backup_${todayStr()}.json`;
         a.click();
-        document.body.removeChild(a);
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          showToast('✅ تم التحميل في مجلد التنزيلات');
-        }, 1500);
-
-        // محاولة حفظ في مجلد التطبيق (File System Access API)
-        try {
-          if ('showDirectoryPicker' in window) {
-            const dirHandle = await window.showDirectoryPicker();
-            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(jsonStr);
-            await writable.close();
-
-            localStorage.setItem('mido_folder_handle', JSON.stringify({
-              name: dirHandle.name,
-              timestamp: Date.now()
-            }));
-
-            showToast(`✅ تم حفظ أيضاً في مجلد "${dirHandle.name}"`);
-          }
-        } catch (fsErr) {
-          console.log('⚠️ لم يتم حفظ في مجلد التطبيق:', fsErr.message || fsErr);
-        }
-
+        URL.revokeObjectURL(url);
+        showToast('تم تصدير النسخة الاحتياطية بنجاح');
       } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
+        showToast('خطأ أثناء التصدير: ' + err.message);
       }
     });
 
-    // ----- 3. عرض الملفات المحفوظة داخل التطبيق -----
-    async function showSavedFiles() {
-      try {
-        const db = await openFileDB();
-        const tx = db.transaction('files', 'readonly');
-        const store = tx.objectStore('files');
-        const request = store.getAll();
-        const files = await new Promise((resolve) => {
-          request.onsuccess = () => resolve(request.result || []);
-        });
+    // رقم الواتساب للمسؤول لتلقي التقارير (يجب أن يتضمن رمز الدولة، مثال: 201001234567 لرقم مصري)
+    const ADMIN_REMINDER_PHONE = "201559387858"; // **يرجى تغيير هذا الرقم إلى رقم المسؤول الفعلي**
 
-        if (files.length === 0) {
-          showToast('📂 مفيش ملفات نسخ احتياطي');
-          return;
-        }
-
-        let html = `<h2>📂 الملفات المحفوظة</h2>
-        <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
-          اختر ملف لاسترجاع البيانات منه:
-        </p>
-        <div style="max-height:350px; overflow-y:auto;">`;
-
-        for (const file of files) {
-          const sizeKB = (file.size / 1024).toFixed(1);
-          html += `
-            <div class="row-item">
-              <div class="row-main">
-                <div class="row-title">📊 ${file.name}</div>
-                <div class="row-sub">التاريخ: ${file.date || 'غير معروف'} · الحجم: ${sizeKB} KB</div>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="restoreFromApp('${file.name}')">🔄 استرجاع</button>
-              <button class="btn btn-danger-text btn-sm" onclick="deleteSavedFile('${file.name}')">🗑️</button>
-            </div>
-          `;
-        }
-
-        html += `</div>
-        <div class="modal-close-row">
-          <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
-          <button class="btn btn-primary" onclick="restoreFromAppFolder()">📂 استرجاع من مجلد التطبيق</button>
-        </div>`;
-
-        openModal(html);
-
-      } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
+    document.getElementById('send-admin-report-btn').addEventListener('click', async () => {
+      if (!ADMIN_REMINDER_PHONE) {
+        showToast('❌ لم يتم تحديد رقم مسؤول لإرسال التقرير. يرجى تعديل الكود.');
+        return;
       }
-    }
-
-    // ----- 4. استرجاع من ملف محفوظ داخل التطبيق -----
-    async function restoreFromApp(fileName) {
-      if (!confirm(`⚠️ هل أنت متأكد من استرجاع البيانات من "${fileName}"؟\nسيتم استبدال البيانات الحالية.`)) return;
-
       try {
-        showToast('⏳ جاري استرجاع البيانات...');
+        const customers = await db.getAll('customers');
+        const plans = await db.getAll('plans');
+        const installments = await db.getAll('installments');
+        const today = todayStr();
 
-        const fileDB = await openFileDB();
-        const tx = fileDB.transaction('files', 'readonly');
-        const store = tx.objectStore('files');
-        const request = store.get(fileName);
-        const file = await new Promise((resolve) => {
-          request.onsuccess = () => resolve(request.result);
-        });
+        let overdueReport = [];
+        let dueSoonReport = [];
 
-        if (!file) {
-          showToast('❌ الملف غير موجود');
-          return;
-        }
+        const sevenDaysLater = new Date();
+        sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+        const sevenDaysStr = sevenDaysLater.toISOString().slice(0, 10);
 
-        const data = JSON.parse(file.data);
+        installments.forEach(inst => {
+          if (!inst.paid) {
+            const plan = plans.find(p => p.id === inst.plan_id);
+            const cust = customers.find(c => c && c.id == (plan ? plan.customer_id : null));
+            const custName = cust ? cust.name : 'عميل غير معروف';
+            const custPhone = cust ? cust.phone : '';
+            const prodName = plan ? plan.product_name : '';
 
-        if (!data.customers || !data.plans) {
-          throw new Error('الملف غير صالح');
-        }
+            const reportEntry = `* ${custName} (${custPhone}) - ${prodName}: ${fmt(inst.amount)} ج.م (استحقاق: ${inst.due_date})`;
 
-        await db.clearAll();
-
-        for (let c of data.customers || []) await db.add('customers', c);
-        for (let p of data.plans || []) await db.add('plans', p);
-        for (let i of data.installments || []) await db.add('installments', i);
-        for (let cr of data.circles || []) await db.add('circles', cr);
-        for (let cm of data.circle_members || []) await db.add('circle_members', cm);
-        for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
-        for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
-
-        showToast('✅ تم استرجاع البيانات بنجاح!');
-        closeModal();
-        switchView(state.view);
-
-      } catch (err) {
-        showToast('❌ خطأ أثناء الاسترجاع: ' + err.message);
-      }
-    }
-
-    // ----- 5. حذف ملف محفوظ -----
-    async function deleteSavedFile(fileName) {
-      if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
-
-      try {
-        const db = await openFileDB();
-        const tx = db.transaction('files', 'readwrite');
-        const store = tx.objectStore('files');
-        store.delete(fileName);
-        await new Promise((resolve) => tx.oncomplete = resolve);
-
-        showToast('✅ تم حذف الملف');
-        showSavedFiles();
-      } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
-      }
-    }
-
-    // ----- 6. استرجاع من مجلد التطبيق (File System Access API) -----
-    async function restoreFromAppFolder() {
-      try {
-        if (!('showDirectoryPicker' in window)) {
-          showToast('❌ هذه الميزة غير مدعومة على متصفحك');
-          return;
-        }
-
-        const dirHandle = await window.showDirectoryPicker();
-
-        const files = [];
-        for await (const entry of dirHandle.values()) {
-          if (entry.kind === 'file' && entry.name.endsWith('.mido')) {
-            files.push(entry);
+            if (inst.due_date < today) {
+              overdueReport.push(reportEntry);
+            } else if (inst.due_date <= sevenDaysStr) {
+              dueSoonReport.push(reportEntry);
+            }
           }
-        }
+        });
 
-        if (files.length === 0) {
-          showToast('❌ لا يوجد ملفات Mido في هذا المجلد');
-          return;
-        }
+        let reportMessage = `*تقرير Mido App - ${new Date().toLocaleDateString('ar-EG')}*\n\n`;
+        reportMessage += `*أقساط متأخرة (${overdueReport.length}):*\n${overdueReport.length ? overdueReport.join('\n') : 'لا يوجد أقساط متأخرة.'}\n\n`;
+        reportMessage += `*أقساط مستحقة خلال 7 أيام (${dueSoonReport.length}):*\n${dueSoonReport.length ? dueSoonReport.join('\n') : 'لا يوجد أقساط مستحقة قريباً.'}\n\n`;
 
-        let html = `<h2>📂 اختيار ملف للاسترجاع</h2>
-        <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
-          اختر ملف Mido من مجلد "${dirHandle.name}":
-        </p>
-        <div style="max-height:350px; overflow-y:auto;">`;
-
-        for (let file of files) {
-          const stat = await file.getFile();
-          const sizeKB = (stat.size / 1024).toFixed(1);
-          html += `
-            <div class="row-item">
-              <div class="row-main">
-                <div class="row-title">📊 ${file.name}</div>
-                <div class="row-sub">الحجم: ${sizeKB} KB</div>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="restoreFromFileHandle('${file.name}')">🔄 استرجاع</button>
-            </div>
-          `;
-        }
-
-        html += `</div>
-        <div class="modal-close-row">
-          <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
-        </div>`;
-
-        openModal(html);
-        window._currentFolderHandle = dirHandle;
-
+        sendWhatsAppReminder(ADMIN_REMINDER_PHONE, reportMessage);
+        showToast('تم إعداد تقرير المسؤول للواتساب');
       } catch (err) {
-        if (err.name === 'AbortError' || err.message.includes('abort')) {
-          showToast('❌ تم إلغاء اختيار المجلد');
-        } else {
-          showToast('❌ خطأ: ' + err.message);
-        }
+        showToast('❌ خطأ أثناء إعداد التقرير: ' + err.message);
       }
-    }
+    });
 
-    // ----- 7. استرجاع من ملف في مجلد التطبيق -----
-    async function restoreFromFileHandle(fileName) {
-      if (!confirm(`⚠️ هل أنت متأكد من استرجاع البيانات من "${fileName}"؟\nسيتم استبدال البيانات الحالية.`)) return;
-
-      try {
-        const dirHandle = window._currentFolderHandle;
-        if (!dirHandle) throw new Error('لم يتم تحديد مجلد');
-
-        const fileHandle = await dirHandle.getFileHandle(fileName);
-        const file = await fileHandle.getFile();
-        const text = await file.text();
-        const data = JSON.parse(text);
-
-        if (!data.customers || !data.plans) throw new Error('الملف غير صالح');
-
-        showToast('⏳ جاري استرجاع البيانات...');
-
-        await db.clearAll();
-
-        for (let c of data.customers || []) await db.add('customers', c);
-        for (let p of data.plans || []) await db.add('plans', p);
-        for (let i of data.installments || []) await db.add('installments', i);
-        for (let cr of data.circles || []) await db.add('circles', cr);
-        for (let cm of data.circle_members || []) await db.add('circle_members', cm);
-        for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
-        for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
-
-        showToast('✅ تم استرجاع البيانات بنجاح!');
-        closeModal();
-        switchView(state.view);
-
-      } catch (err) {
-        showToast('❌ خطأ أثناء الاسترجاع: ' + err.message);
-      }
-    }
-
-    // ----- 8. استرجاع البيانات (الزر الرئيسي) -----
     document.getElementById('restore-btn').addEventListener('click', () => {
-      openModal(`
-        <h2>📂 استرجاع البيانات</h2>
-        <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
-          اختر طريقة الاسترجاع:
-        </p>
-        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
-          <button class="btn btn-primary" onclick="closeModal();restoreFromAppFolder();">
-            📂 استرجاع من مجلد التطبيق
-          </button>
-          <button class="btn btn-outline" onclick="closeModal();document.getElementById('import-file').click();">
-            📄 رفع ملف من الجهاز
-          </button>
-          <button class="btn btn-outline" onclick="closeModal();showSavedFiles();">
-            📁 استرجاع من الملفات المحفوظة
-          </button>
-        </div>
-        <div class="modal-close-row">
-          <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
-        </div>
-      `);
+      document.getElementById('import-file').click();
     });
 
-    // ----- 9. استرجاع من ملف (رفع ملف) -----
-    document.getElementById('import-file').addEventListener('change', async (e) => {
+    document.getElementById('import-file').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = async (evt) => {
         try {
           const data = JSON.parse(evt.target.result);
           if (!data.customers || !data.plans) throw new Error('الملف غير صالح');
-          if (!confirm('⚠️ استرجاع البيانات سيمحو البيانات الحالية ويستبدلها. هل أنت متأكد؟')) return;
-
-          showToast('⏳ جاري استرجاع البيانات...');
+          if (!confirm('استرجاع البيانات سيمحو البيانات الحالية ويستبدلها بالنسخة. هل أنت متأكد؟')) return;
 
           await db.clearAll();
 
@@ -3488,40 +2477,59 @@
           for (let cp of data.circle_payments || []) await db.add('circle_payments', cp);
           for (let cpo of data.circle_payouts || []) await db.add('circle_payouts', cpo);
 
-          showToast('✅ تم استرجاع البيانات بنجاح!');
+          showToast('تم استرجاع البيانات بنجاح!');
           switchView(state.view);
         } catch (err) {
-          alert('❌ فشل استرجاع الملف: ' + err.message);
+          alert('فشل استرجاع الملف: ' + err.message);
         }
       };
       reader.readAsText(file);
-      e.target.value = '';
     });
 
-    // ----- 10. زر الملفات المحفوظة -----
-    document.getElementById('saved-files-btn').addEventListener('click', () => {
-      showSavedFiles();
-      sidebar.classList.remove('open');
-      drawerOverlay.classList.remove('open');
+    document.getElementById('share-backup-btn').addEventListener('click', async () => {
+      try {
+        const data = {
+          customers: await db.getAll('customers'),
+          plans: await db.getAll('plans'),
+          installments: await db.getAll('installments'),
+          circles: await db.getAll('circles'),
+          circle_members: await db.getAll('circle_members'),
+          circle_payments: await db.getAll('circle_payments'),
+          circle_payouts: await db.getAll('circle_payouts'),
+          exported_at: new Date().toISOString()
+        };
+        const jsonStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const fileName = `Mido_App_Backup_${todayStr()}.json`;
+
+        // Check if Web Share API is available and can share files
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+          await navigator.share({
+            files: [new File([blob], fileName, { type: 'application/json' })],
+            title: 'Mido App Backup',
+            text: 'نسخة احتياطية من بيانات تطبيق Mido'
+          });
+          showToast('تم مشاركة النسخة الاحتياطية بنجاح');
+        } else {
+          // Fallback to download if Web Share API is not available or cannot share files
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('تم تصدير النسخة الاحتياطية بنجاح (لا يمكن المشاركة مباشرة)');
+        }
+      } catch (err) {
+        showToast('خطأ أثناء المشاركة/التصدير: ' + err.message);
+      }
     });
 
-    // ========================================================================
-    // ==================== INIT ============================================
-    // ========================================================================
-
-    document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // بدء التطبيق
-    checkActivation();
+    // ========== INIT ==========
+    document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    checkAuth();
     if (sessionStorage.getItem('mido_admin_logged') === 'true') {
       loadDashboard();
-      // فحص الإشعارات بعد 3 ثواني
-      setTimeout(checkDueInstallments, 3000);
     }
   </script>
 </body>
