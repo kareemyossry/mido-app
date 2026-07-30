@@ -288,6 +288,40 @@
       border-color: rgba(184, 76, 76, 0.5);
     }
 
+    /* ===== أزرار النسخ الاحتياطي ===== */
+    .btn-backup-save {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .btn-backup-save:hover {
+      background: var(--primary-dark);
+      color: white;
+    }
+
+    .btn-backup-share {
+      background: #2C3E50;
+      color: white;
+      border-color: #2C3E50;
+    }
+
+    .btn-backup-share:hover {
+      background: #1a2a3a;
+      color: white;
+    }
+
+    .btn-backup-copy {
+      background: #6C3483;
+      color: white;
+      border-color: #6C3483;
+    }
+
+    .btn-backup-copy:hover {
+      background: #4A235A;
+      color: white;
+    }
+
     /* ---------- Main content ---------- */
     .content {
       flex: 1;
@@ -1094,7 +1128,6 @@
         <button class="nav-item" data-view="overdue"><span class="nav-icon">!</span> المتأخرات
           <span class="nav-badge" id="overdue-badge" hidden>0</span>
         </button>
-        <!-- أيقونة تحصيل الشهور -->
         <button class="nav-item" data-view="collection-months"><span class="nav-icon">📊</span> تحصيل الشهور
           <span class="nav-badge" id="collection-months-badge" hidden>0</span>
         </button>
@@ -1102,13 +1135,21 @@
       </nav>
       <div class="sidebar-footer">
         <button class="btn-new" id="global-new-plan">+ خطة تقسيط جديدة</button>
-        <button class="btn-secondary-action" id="backup-btn">💾 نسخة احتياطية</button>
-        <button class="btn-secondary-action" style="background:var(--primary);color:white;border-color:var(--primary);"
-          id="save-to-folder-btn">
-          💾 حفظ في مجلد التطبيق
+
+        <!-- ===== أزرار النسخ الاحتياطي ===== -->
+        <button class="btn-secondary-action btn-backup-save" id="backup-save-btn">
+          💾 حفظ في الجهاز
         </button>
-        <button class="btn-secondary-action" id="share-backup-btn">📤 مشاركة نسخة احتياطية</button>
-        <button class="btn-secondary-action" id="saved-files-btn">📂 الملفات المحفوظة</button>
+        <button class="btn-secondary-action btn-backup-share" id="backup-share-btn">
+          📤 مشاركة الملف
+        </button>
+        <button class="btn-secondary-action btn-backup-copy" id="backup-copy-btn">
+          📋 نسخ البيانات
+        </button>
+        <button class="btn-secondary-action" id="backup-list-btn">
+          📂 النسخ المحفوظة
+        </button>
+
         <button class="btn-secondary-action" id="restore-btn">📂 استرجاع البيانات</button>
         <button class="btn-secondary-action" id="control-number-btn">📱 رقم التحكم</button>
         <button class="btn-secondary-action" id="daily-summary-btn">📊 إرسال تقرير اليوم</button>
@@ -1290,64 +1331,6 @@
         changePassBtn.classList.remove('show');
       }
     }
-    // ===== زر حفظ في مجلد التطبيق =====
-    document.getElementById('save-to-folder-btn')?.addEventListener('click', async () => {
-      // استخدم نفس الكود بتاع backup-btn لكن بدون الـ fallbacks
-      try {
-        showToast('⏳ جاري تجهيز الملف...');
-
-        const data = {
-          customers: await db.getAll('customers'),
-          plans: await db.getAll('plans'),
-          installments: await db.getAll('installments'),
-          circles: await db.getAll('circles'),
-          circle_members: await db.getAll('circle_members'),
-          circle_payments: await db.getAll('circle_payments'),
-          circle_payouts: await db.getAll('circle_payouts'),
-          collection_months: await db.getAll('collection_months'),
-          exported_at: new Date().toISOString()
-        };
-
-        const jsonStr = JSON.stringify(data, null, 2);
-        const fileName = `Mido_Backup_${todayStr()}.mido`;
-
-        // حفظ في IndexedDB
-        await saveFileToApp(fileName, jsonStr);
-
-        // حفظ في مجلد التطبيق
-        if ('showDirectoryPicker' in window) {
-          const dirHandle = await window.showDirectoryPicker();
-          const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-          const writable = await fileHandle.createWritable();
-          await writable.write(jsonStr);
-          await writable.close();
-
-          localStorage.setItem('mido_folder_handle', JSON.stringify({
-            name: dirHandle.name,
-            timestamp: Date.now()
-          }));
-
-          showToast(`✅ تم حفظ الملف في مجلد "${dirHandle.name}"`);
-          showInAppNotification(
-            `💾 تم حفظ النسخة الاحتياطية\n📁 المجلد: ${dirHandle.name}\n📄 الملف: ${fileName}`,
-            'success',
-            8000
-          );
-        } else {
-          showToast('❌ متصفحك لا يدعم هذه الميزة');
-        }
-
-      } catch (err) {
-        if (err.name === 'AbortError' || err.message.includes('abort')) {
-          showToast('❌ تم إلغاء اختيار المجلد');
-        } else {
-          showToast('❌ خطأ: ' + err.message);
-        }
-      }
-
-      sidebar.classList.remove('open');
-      drawerOverlay.classList.remove('open');
-    });
 
     document.getElementById('login-btn').addEventListener('click', () => {
       const user = document.getElementById('login-username').value.trim();
@@ -1604,7 +1587,7 @@
     class LocalDB {
       constructor() {
         this.dbName = 'MidoOfflineAppDB';
-        this.version = 3; // تم الترقية لـ 3 عشان يضيف collection_months
+        this.version = 3;
         this.db = null;
       }
 
@@ -1620,7 +1603,6 @@
           request.onupgradeneeded = (e) => {
             const db = e.target.result;
 
-            // حذف الـ stores القديمة لو موجودة (عشان نضمن الهيكل الجديد)
             const storesToRemove = ['customers', 'plans', 'installments', 'circles', 'circle_members', 'circle_payments',
               'circle_payouts', 'collection_months'
             ];
@@ -1630,7 +1612,6 @@
               }
             }
 
-            // إنشاء الـ stores من جديد
             const cStore = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
             cStore.createIndex('name', 'name', { unique: false });
 
@@ -1649,7 +1630,6 @@
             const cpoStore = db.createObjectStore('circle_payouts', { keyPath: 'id', autoIncrement: true });
             cpoStore.createIndex('circle_id', 'circle_id', { unique: false });
 
-            // ===== NEW: Collection Months Store =====
             const colStore = db.createObjectStore('collection_months', { keyPath: 'id', autoIncrement: true });
             colStore.createIndex('month', 'month', { unique: false });
             colStore.createIndex('customer_id', 'customer_id', { unique: false });
@@ -1774,8 +1754,12 @@
 
     // Navigation
     const titles = {
-      dashboard: 'الرئيسية', customers: 'العملاء', plans: 'خطط التقسيط', circles: 'الجمعيات',
-      overdue: 'المتأخرات', 'collection-months': 'تحصيل الشهور'
+      dashboard: 'الرئيسية',
+      customers: 'العملاء',
+      plans: 'خطط التقسيط',
+      circles: 'الجمعيات',
+      overdue: 'المتأخرات',
+      'collection-months': 'تحصيل الشهور'
     };
 
     document.querySelectorAll('.nav-item:not(#change-password-nav)').forEach(btn => {
@@ -1867,9 +1851,8 @@
     // ==================== COLLECTION MONTHS ================================
     // ========================================================================
 
-    // ===== دالة لتسجيل التحصيل حسب الشهر المستحق =====
     async function recordCollectionMonth(customerId, installmentId, amount, dueDate, planId) {
-      const month = dueDate.substring(0, 7); // YYYY-MM
+      const month = dueDate.substring(0, 7);
 
       const allCols = await db.getAll('collection_months');
       const existing = allCols.find(c =>
@@ -1897,7 +1880,6 @@
       await updateCollectionBadge();
     }
 
-    // ===== حذف سجل تحصيل =====
     async function deleteCollectionRecord(id) {
       if (!confirm('⚠️ هل أنت متأكد من حذف سجل التحصيل هذا؟')) return;
 
@@ -1912,7 +1894,6 @@
       }
     }
 
-    // ===== مسح كل سجلات التحصيل =====
     async function clearAllCollectionRecords() {
       if (!confirm('⚠️ هل أنت متأكد من مسح كل سجلات التحصيل؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
 
@@ -1930,7 +1911,6 @@
       }
     }
 
-    // ===== عرض صفحة تحصيل الشهور مع Summation =====
     async function loadCollectionMonths() {
       const el = document.getElementById('view-collection-months');
       el.innerHTML = `<p style="color:var(--text-muted)">جاري التحميل...</p>`;
@@ -1945,7 +1925,6 @@
           return;
         }
 
-        // تجميع حسب الشهر
         const months = {};
         for (const col of allCols) {
           if (!months[col.month]) months[col.month] = [];
@@ -1963,13 +1942,11 @@
         <div class="panel-body">
     `;
 
-        // حساب الإجمالي الكلي
         let grandTotal = 0;
         for (const cols of Object.values(months)) {
           grandTotal += cols.reduce((s, i) => s + i.amount, 0);
         }
 
-        // عرض الإجمالي الكلي
         html += `
       <div class="summary-box" style="margin:0 16px 16px; background:var(--primary-tint); border-color:var(--primary);">
         <div class="summary-row highlight" style="font-size:16px;">
@@ -2026,7 +2003,6 @@
       </div>
     `;
 
-        // إضافة أزرار التحكم
         html += `
       <div style="text-align:center; padding:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
         <button class="btn btn-danger-text" onclick="clearAllCollectionRecords()">🗑️ مسح كل سجلات التحصيل</button>
@@ -2042,7 +2018,6 @@
       }
     }
 
-    // ===== تصدير تقرير التحصيل =====
     async function exportCollectionMonths() {
       try {
         const allCols = await db.getAll('collection_months');
@@ -2160,7 +2135,6 @@
         const customers = await db.getAll('customers');
         const today = todayStr();
 
-        // الأقساط المتأخرة
         const overdue = installments.filter(i => !i.paid && i.due_date < today);
 
         if (overdue.length > 0) {
@@ -2183,7 +2157,6 @@
       localStorage.setItem('mido_control_number', phone);
     }
 
-    // ===== بناء تقرير مفصل ومنظم =====
     async function buildDetailedReport() {
       const installments = await db.getAll('installments');
       const plans = await db.getAll('plans');
@@ -2210,7 +2183,6 @@
       const partialList = [];
       const monthTotals = {};
 
-      // تحصيل الشهور
       for (const col of collectionMonths) {
         if (!monthTotals[col.month]) monthTotals[col.month] = 0;
         monthTotals[col.month] += col.amount;
@@ -2284,7 +2256,6 @@
         }
       }
 
-      // بناء تقرير منظم
       let report = `تقرير Mido اليومي\n`;
       report += `${today}\n`;
       report += `${'='.repeat(40)}\n\n`;
@@ -2296,7 +2267,6 @@
       report += `المحصل: ${fmt(totalPaid)} ج.م\n`;
       report += `المستحق: ${fmt(totalPending)} ج.م\n\n`;
 
-      // تحصيل الشهور
       if (Object.keys(monthTotals).length > 0) {
         report += `📊 تحصيل الشهور\n`;
         report += `${'-'.repeat(30)}\n`;
@@ -2307,7 +2277,6 @@
         report += `\n`;
       }
 
-      // المتأخرات
       if (overdueList.length > 0) {
         report += `🚨 المتأخرات (${overdueList.length})\n`;
         report += `${'-'.repeat(30)}\n`;
@@ -2326,7 +2295,6 @@
         }
       }
 
-      // مستحق اليوم
       if (dueTodayList.length > 0) {
         report += `📌 مستحق اليوم (${dueTodayList.length})\n`;
         report += `${'-'.repeat(30)}\n`;
@@ -2340,7 +2308,6 @@
         }
       }
 
-      // مستحق قريباً
       if (dueSoonList.length > 0) {
         report += `⏰ مستحق خلال 3 أيام (${dueSoonList.length})\n`;
         report += `${'-'.repeat(30)}\n`;
@@ -2358,7 +2325,6 @@
         }
       }
 
-      // رصيد معلق
       if (partialList.length > 0) {
         report += `🟡 رصيد معلق (دفعات جزئية) (${partialList.length})\n`;
         report += `${'-'.repeat(30)}\n`;
@@ -2455,7 +2421,6 @@
     </div>
   `);
 
-      // جلب قيمة القسط المتبقي
       (async () => {
         const inst = await db.getById('installments', instId);
         const remaining = round2(inst.amount - (inst.paid_amount || 0));
@@ -2465,7 +2430,6 @@
         }
       })();
 
-      // ===== زر دفع كامل المبلغ =====
       document.getElementById('pay-full-amount-btn').addEventListener('click', async () => {
         const inst = await db.getById('installments', instId);
         const remaining = round2(inst.amount - (inst.paid_amount || 0));
@@ -2515,7 +2479,6 @@
         inst.paid_amount = (inst.paid_amount || 0) + paidAmount;
         inst.last_payment_date = todayStr();
 
-        // ===== تسجيل التحصيل حسب الشهر المستحق =====
         const dueMonth = inst.due_date ? inst.due_date.substring(0, 7) : todayStr().substring(0, 7);
         await recordCollectionMonth(
           plan.customer_id,
@@ -2621,7 +2584,6 @@
         const currentMonth = today.substring(0, 7);
         const upcoming = [];
 
-        // حساب تحصيل الشهر الحالي من collection_months
         for (const col of collectionMonths) {
           if (col.month === currentMonth) {
             collectedThisMonth += col.amount;
@@ -2668,7 +2630,6 @@
         upcoming.sort((a, b) => a.due_date.localeCompare(b.due_date));
         updateOverdueBadge(overdueCount);
 
-        // تحديث بادج التحصيل
         await updateCollectionBadge();
 
         el.innerHTML = `
@@ -3890,17 +3851,11 @@
       }
     }
 
-    // ===== تصدير النسخة الاحتياطية =====
-    // ===== تصدير وحفظ الملفات (النسخة الاحتياطية) =====
-    // ========================================================================
-    // ==================== تصدير النسخة الاحتياطية (الحل النهائي) ==========
-    // ========================================================================
-
-    document.getElementById('backup-btn').addEventListener('click', async () => {
+    // ===== 1. حفظ في الجهاز =====
+    async function saveBackupToDevice() {
       try {
-        showToast('⏳ جاري تجهيز الملف...');
+        showToast('⏳ جاري حفظ النسخة الاحتياطية...');
 
-        // 1. تجهيز البيانات
         const data = {
           customers: await db.getAll('customers'),
           plans: await db.getAll('plans'),
@@ -3916,14 +3871,82 @@
         const jsonStr = JSON.stringify(data, null, 2);
         const fileName = `Mido_Backup_${todayStr()}.mido`;
 
-        // 2. حفظ في التطبيق (دائماً)
+        // حفظ في IndexedDB كنسخة احتياطية
         await saveFileToApp(fileName, jsonStr);
-        showToast('✅ تم حفظ الملف في التطبيق');
 
-        // 3. ===== الطريقة المضمونة: استخدام navigator.share =====
+        // محاولة حفظ كملف حقيقي
+        try {
+          if (typeof Capacitor !== 'undefined' && Capacitor.isNative) {
+            // Capacitor Filesystem
+            const { Filesystem, Directory, Encoding } = Capacitor.Plugins;
+            await Filesystem.writeFile({
+              path: `Mido Backup/${fileName}`,
+              data: jsonStr,
+              directory: Directory.Documents,
+              encoding: Encoding.UTF8,
+              recursive: true
+            });
+            showToast(`✅ تم حفظ الملف في مجلد Mido Backup`);
+            showInAppNotification(
+              `💾 تم حفظ النسخة الاحتياطية\n📄 ${fileName}\n📂 المسار: المستندات/Mido Backup/`,
+              'success',
+              8000
+            );
+          } else {
+            // للمتصفحات - حفظ باستخدام IndexedDB
+            showToast('✅ تم حفظ النسخة في التطبيق');
+            showInAppNotification(
+              `💾 تم حفظ النسخة الاحتياطية\n📄 ${fileName}\n📂 موجودة في "الملفات المحفوظة"`,
+              'success',
+              8000
+            );
+          }
+        } catch (err) {
+          // لو فشل الحفظ في النظام، نستخدم IndexedDB
+          showToast('✅ تم حفظ النسخة في التطبيق');
+          showInAppNotification(
+            `💾 تم حفظ النسخة الاحتياطية\n📄 ${fileName}\n📂 موجودة في "الملفات المحفوظة"`,
+            'success',
+            8000
+          );
+        }
+
+        sidebar.classList.remove('open');
+        drawerOverlay.classList.remove('open');
+
+      } catch (err) {
+        showToast('❌ خطأ: ' + err.message);
+      }
+    }
+
+    // ===== 2. مشاركة الملف =====
+    async function shareBackupFile() {
+      try {
+        showToast('⏳ جاري تجهيز الملف للمشاركة...');
+
+        const data = {
+          customers: await db.getAll('customers'),
+          plans: await db.getAll('plans'),
+          installments: await db.getAll('installments'),
+          circles: await db.getAll('circles'),
+          circle_members: await db.getAll('circle_members'),
+          circle_payments: await db.getAll('circle_payments'),
+          circle_payouts: await db.getAll('circle_payouts'),
+          collection_months: await db.getAll('collection_months'),
+          exported_at: new Date().toISOString()
+        };
+
+        const jsonStr = JSON.stringify(data, null, 2);
+        const fileName = `Mido_Backup_${todayStr()}.mido`;
+
+        // Blob للملف
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        // حاول مشاركة (لو مدعوم)
         if (navigator.share) {
           try {
-            const blob = new Blob([jsonStr], { type: 'application/json' });
+            // ملاحظة: iOS أحيانًا بيفشل لو File مش متعرف كويس
             const file = new File([blob], fileName, { type: 'application/json' });
 
             await navigator.share({
@@ -3932,83 +3955,116 @@
               text: `ملف النسخة الاحتياطية - ${todayStr()}`
             });
 
-            showToast('✅ تم حفظ ومشاركة الملف بنجاح');
-            showInAppNotification(
-              `💾 تم حفظ الملف في التطبيق\n📄 ${fileName}\n📤 تم فتح المشاركة`,
-              'success',
-              6000
-            );
+            showToast('✅ تم مشاركة الملف');
+            URL.revokeObjectURL(url);
+            sidebar.classList.remove('open');
+            drawerOverlay.classList.remove('open');
             return;
           } catch (shareErr) {
-            if (shareErr.name === 'AbortError') {
+            // لو AbortError تمام (اللي بيحصل لما المستخدم يلغّي)
+            if (shareErr && shareErr.name === 'AbortError') {
               showToast('❌ تم إلغاء المشاركة');
+              URL.revokeObjectURL(url);
               return;
             }
-            console.log('⚠️ فشل المشاركة، نحاول طريقة أخرى');
+            // لو فشل (شائع على الموبايل) هنكمل للتنزيل
+            showToast('ℹ️ المشاركة فشلت، هنحاول تنزيل الملف...');
           }
         }
 
-        // 4. الطريقة البديلة: استخدام showSaveFilePicker
-        if (window.showSaveFilePicker) {
-          try {
-            const handle = await window.showSaveFilePicker({
-              suggestedName: fileName,
-              types: [{
-                description: 'Mido Backup File',
-                accept: { 'application/json': ['.mido'] },
-              }],
-            });
-            const writable = await handle.createWritable();
-            await writable.write(jsonStr);
-            await writable.close();
-            showToast('✅ تم حفظ الملف بنجاح');
-            showInAppNotification(
-              `💾 تم حفظ الملف\n📄 ${fileName}`,
-              'success',
-              6000
-            );
-            return;
-          } catch (saveErr) {
-            if (saveErr.name === 'AbortError') {
-              showToast('❌ تم إلغاء الحفظ');
-              return;
-            }
-          }
-        }
-
-        // 5. آخر حل: تحميل عادي
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        // Fallback: تنزيل الملف (مضمون أكتر على الموبايل)
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
-        a.style.display = 'none';
+
+        // لازم نضيفه للـ DOM في بعض البيئات
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        a.remove();
 
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          showToast('✅ تم التحميل في مجلد التنزيلات');
+        URL.revokeObjectURL(url);
+
+        showToast('✅ تم تنزيل النسخة الاحتياطية على جهازك');
+        sidebar.classList.remove('open');
+        drawerOverlay.classList.remove('open');
+      } catch (err) {
+        showToast('❌ خطأ: ' + (err.message || err));
+      }
+    }
+
+    // ===== 3. نسخ البيانات للحافظة =====
+    document.getElementById('backup-copy-btn').addEventListener('click', async () => {
+      try {
+        showToast('⏳ جاري تجهيز البيانات...');
+
+        const data = {
+          customers: await db.getAll('customers'),
+          plans: await db.getAll('plans'),
+          installments: await db.getAll('installments'),
+          circles: await db.getAll('circles'),
+          circle_members: await db.getAll('circle_members'),
+          circle_payments: await db.getAll('circle_payments'),
+          circle_payouts: await db.getAll('circle_payouts'),
+          collection_months: await db.getAll('collection_months'),
+          exported_at: new Date().toISOString()
+        };
+
+        const jsonStr = JSON.stringify(data, null, 2);
+        const fileName = `Mido_Backup_${todayStr()}.mido`;
+
+        await saveFileToApp(fileName, jsonStr);
+
+        try {
+          await navigator.clipboard.writeText(jsonStr);
+          showToast('✅ تم نسخ البيانات للحافظة');
           showInAppNotification(
-            `📁 الملف موجود في مجلد التنزيلات\n📄 ${fileName}`,
-            'info',
-            6000
+            `📋 تم نسخ ${jsonStr.length} حرف\n📄 ${fileName}\nألصقها في أي مكان لحفظها`,
+            'success',
+            8000
           );
-        }, 3000);
+
+          openModal(`
+            <h2>📋 تم نسخ البيانات</h2>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
+              تم نسخ ${jsonStr.length} حرف من البيانات إلى الحافظة.
+              يمكنك لصقها في أي ملف نصي لحفظها.
+            </p>
+            <div style="background:#f5f5f5; padding:12px; border-radius:8px; max-height:200px; overflow:auto; font-size:11px; direction:ltr; text-align:left; font-family:monospace; word-break:break-all;">
+              ${jsonStr.slice(0, 800)}${jsonStr.length > 800 ? '...' : ''}
+            </div>
+            <div class="modal-close-row">
+              <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.querySelector('.modal div[style*=\"background:#f5f5f5\"]')?.textContent || '')">📋 نسخ مرة أخرى</button>
+              <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
+            </div>
+          `);
+
+        } catch (clipErr) {
+          openModal(`
+            <h2>📋 نسخ البيانات يدوياً</h2>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
+              لم نتمكن من النسخ للحافظة، يمكنك نسخ البيانات يدوياً من الأسفل:
+            </p>
+            <div style="background:#f5f5f5; padding:12px; border-radius:8px; max-height:300px; overflow:auto; font-size:11px; direction:ltr; text-align:left; font-family:monospace; word-break:break-all; user-select:text;">
+              ${jsonStr}
+            </div>
+            <div class="modal-close-row">
+              <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
+            </div>
+          `);
+        }
+
+        sidebar.classList.remove('open');
+        drawerOverlay.classList.remove('open');
 
       } catch (err) {
         showToast('❌ خطأ: ' + err.message);
-        showInAppNotification(
-          `❌ فشل التصدير: ${err.message}\nالملف محفوظ في التطبيق (الملفات المحفوظة)`,
-          'danger',
-          8000
-        );
       }
     });
-    // ===== عرض الملفات المحفوظة =====
-    async function showSavedFiles() {
+
+    // ===== 4. عرض النسخ المحفوظة =====
+    async function listBackupFiles() {
       try {
+        // محاولة قراءة من IndexedDB
         const db = await openFileDB();
         const tx = db.transaction('files', 'readonly');
         const store = tx.objectStore('files');
@@ -4022,9 +4078,9 @@
           return;
         }
 
-        let html = `<h2>📂 الملفات المحفوظة</h2>
+        let html = `<h2>📂 النسخ الاحتياطية المحفوظة</h2>
         <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
-          اختر ملف لاسترجاع البيانات منه (ملفات .mido):
+          اختر ملف لاسترجاع البيانات منه:
         </p>
         <div style="max-height:350px; overflow-y:auto;">`;
 
@@ -4054,7 +4110,7 @@
       }
     }
 
-    // ===== استرجاع من التطبيق =====
+    // ===== 5. استرجاع من التطبيق =====
     async function restoreFromApp(fileName) {
       if (!confirm(`⚠️ هل أنت متأكد من استرجاع البيانات من "${fileName}"؟\nسيتم استبدال البيانات الحالية.`)) return;
 
@@ -4094,7 +4150,7 @@
       }
     }
 
-    // ===== حذف ملف محفوظ =====
+    // ===== 6. حذف ملف محفوظ =====
     async function deleteSavedFile(fileName) {
       if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
 
@@ -4106,13 +4162,13 @@
         await new Promise((resolve) => tx.oncomplete = resolve);
 
         showToast('✅ تم حذف الملف');
-        showSavedFiles();
+        listBackupFiles();
       } catch (err) {
         showToast('❌ خطأ: ' + err.message);
       }
     }
 
-    // ===== استرجاع من ملف خارجي =====
+    // ===== 7. استرجاع من ملف خارجي =====
     document.getElementById('restore-btn').addEventListener('click', () => {
       document.getElementById('import-file').click();
     });
@@ -4152,12 +4208,10 @@
       e.target.value = '';
     });
 
-    // ===== الأزرار =====
-    document.getElementById('saved-files-btn').addEventListener('click', () => {
-      showSavedFiles();
-      sidebar.classList.remove('open');
-      drawerOverlay.classList.remove('open');
-    });
+    // ===== ربط الأزرار =====
+    document.getElementById('backup-save-btn').addEventListener('click', saveBackupToDevice);
+    document.getElementById('backup-share-btn').addEventListener('click', shareBackupFile);
+    document.getElementById('backup-list-btn').addEventListener('click', listBackupFiles);
 
     document.getElementById('control-number-btn').addEventListener('click', () => {
       openControlNumberSettings();
@@ -4171,93 +4225,6 @@
       drawerOverlay.classList.remove('open');
     });
 
-    // ===== مشاركة النسخة الاحتياطية =====
-    // ===== مشاركة النسخة الاحتياطية =====
-    document.getElementById('share-backup-btn').addEventListener('click', async () => {
-      try {
-        showToast('⏳ جاري تجهيز الملف للمشاركة...');
-
-        const data = {
-          customers: await db.getAll('customers'),
-          plans: await db.getAll('plans'),
-          installments: await db.getAll('installments'),
-          circles: await db.getAll('circles'),
-          circle_members: await db.getAll('circle_members'),
-          circle_payments: await db.getAll('circle_payments'),
-          circle_payouts: await db.getAll('circle_payouts'),
-          collection_months: await db.getAll('collection_months'),
-          exported_at: new Date().toISOString()
-        };
-
-        const jsonStr = JSON.stringify(data, null, 2);
-        const fileName = `Mido_Backup_${todayStr()}.mido`;
-
-        // حفظ في التطبيق
-        await saveFileToApp(fileName, jsonStr);
-
-        // محاولة المشاركة
-        if (navigator.share) {
-          const blob = new Blob([jsonStr], { type: 'application/json' });
-          const file = new File([blob], fileName, { type: 'application/json' });
-          try {
-            await navigator.share({
-              files: [file],
-              title: '📊 نسخة احتياطية Mido',
-              text: `ملف النسخة الاحتياطية - ${todayStr()}`
-            });
-            showToast('✅ تم مشاركة الملف');
-            return;
-          } catch (shareErr) {
-            if (shareErr.name === 'AbortError') {
-              showToast('❌ تم إلغاء المشاركة');
-              return;
-            }
-          }
-        }
-
-        // إذا فشلت المشاركة، نحاول التحميل
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-
-        // محاولة استخدام showSaveFilePicker
-        if (window.showSaveFilePicker) {
-          try {
-            const handle = await window.showSaveFilePicker({
-              suggestedName: fileName,
-              types: [{
-                description: 'Mido Backup File',
-                accept: { 'application/json': ['.mido'] },
-              }],
-            });
-            const writable = await handle.createWritable();
-            await writable.write(jsonStr);
-            await writable.close();
-            showToast('✅ تم حفظ الملف');
-            return;
-          } catch (e) {
-            if (e.name === 'AbortError') {
-              showToast('❌ تم إلغاء الحفظ');
-              return;
-            }
-          }
-        }
-
-        // آخر حل: تحميل عادي
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1500);
-
-        showToast('✅ تم تحميل الملف');
-
-      } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
-      }
-    });
     // ========================================================================
     // ==================== INIT ============================================
     // ========================================================================
