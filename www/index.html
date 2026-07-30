@@ -1103,6 +1103,10 @@
       <div class="sidebar-footer">
         <button class="btn-new" id="global-new-plan">+ خطة تقسيط جديدة</button>
         <button class="btn-secondary-action" id="backup-btn">💾 نسخة احتياطية</button>
+        <button class="btn-secondary-action" style="background:var(--primary);color:white;border-color:var(--primary);"
+          id="save-to-folder-btn">
+          💾 حفظ في مجلد التطبيق
+        </button>
         <button class="btn-secondary-action" id="share-backup-btn">📤 مشاركة نسخة احتياطية</button>
         <button class="btn-secondary-action" id="saved-files-btn">📂 الملفات المحفوظة</button>
         <button class="btn-secondary-action" id="restore-btn">📂 استرجاع البيانات</button>
@@ -1286,6 +1290,64 @@
         changePassBtn.classList.remove('show');
       }
     }
+    // ===== زر حفظ في مجلد التطبيق =====
+    document.getElementById('save-to-folder-btn')?.addEventListener('click', async () => {
+      // استخدم نفس الكود بتاع backup-btn لكن بدون الـ fallbacks
+      try {
+        showToast('⏳ جاري تجهيز الملف...');
+
+        const data = {
+          customers: await db.getAll('customers'),
+          plans: await db.getAll('plans'),
+          installments: await db.getAll('installments'),
+          circles: await db.getAll('circles'),
+          circle_members: await db.getAll('circle_members'),
+          circle_payments: await db.getAll('circle_payments'),
+          circle_payouts: await db.getAll('circle_payouts'),
+          collection_months: await db.getAll('collection_months'),
+          exported_at: new Date().toISOString()
+        };
+
+        const jsonStr = JSON.stringify(data, null, 2);
+        const fileName = `Mido_Backup_${todayStr()}.mido`;
+
+        // حفظ في IndexedDB
+        await saveFileToApp(fileName, jsonStr);
+
+        // حفظ في مجلد التطبيق
+        if ('showDirectoryPicker' in window) {
+          const dirHandle = await window.showDirectoryPicker();
+          const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(jsonStr);
+          await writable.close();
+
+          localStorage.setItem('mido_folder_handle', JSON.stringify({
+            name: dirHandle.name,
+            timestamp: Date.now()
+          }));
+
+          showToast(`✅ تم حفظ الملف في مجلد "${dirHandle.name}"`);
+          showInAppNotification(
+            `💾 تم حفظ النسخة الاحتياطية\n📁 المجلد: ${dirHandle.name}\n📄 الملف: ${fileName}`,
+            'success',
+            8000
+          );
+        } else {
+          showToast('❌ متصفحك لا يدعم هذه الميزة');
+        }
+
+      } catch (err) {
+        if (err.name === 'AbortError' || err.message.includes('abort')) {
+          showToast('❌ تم إلغاء اختيار المجلد');
+        } else {
+          showToast('❌ خطأ: ' + err.message);
+        }
+      }
+
+      sidebar.classList.remove('open');
+      drawerOverlay.classList.remove('open');
+    });
 
     document.getElementById('login-btn').addEventListener('click', () => {
       const user = document.getElementById('login-username').value.trim();
@@ -3829,10 +3891,12 @@
     }
 
     // ===== تصدير النسخة الاحتياطية =====
+    // ===== تصدير وحفظ الملفات (النسخة الاحتياطية) =====
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
         showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
 
+        // 1. تجهيز البيانات
         const data = {
           customers: await db.getAll('customers'),
           plans: await db.getAll('plans'),
@@ -3848,9 +3912,70 @@
         const jsonStr = JSON.stringify(data, null, 2);
         const fileName = `Mido_Backup_${todayStr()}.mido`;
 
+        // 2. حفظ في IndexedDB (دائماً)
         await saveFileToApp(fileName, jsonStr);
         showToast('✅ تم حفظ النسخة في التطبيق');
 
+        // 3. محاولة حفظ في مجلد التطبيق باستخدام File System Access API
+        try {
+          if ('showDirectoryPicker' in window) {
+            // اختيار المجلد
+            const dirHandle = await window.showDirectoryPicker();
+
+            // إنشاء الملف في المجلد
+            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(jsonStr);
+            await writable.close();
+
+            // حفظ مرجع المجلد
+            localStorage.setItem('mido_folder_handle', JSON.stringify({
+              name: dirHandle.name,
+              timestamp: Date.now()
+            }));
+
+            showToast(`✅ تم حفظ الملف في مجلد "${dirHandle.name}"`);
+            showInAppNotification(
+              `💾 تم حفظ النسخة الاحتياطية\n📁 المجلد: ${dirHandle.name}\n📄 الملف: ${fileName}`,
+              'success',
+              8000
+            );
+            return;
+          } else {
+            showToast('⚠️ متصفحك لا يدعم حفظ الملفات، تم الحفظ في التطبيق');
+          }
+        } catch (fsErr) {
+          if (fsErr.name === 'AbortError' || fsErr.message.includes('abort')) {
+            showToast('❌ تم إلغاء اختيار المجلد');
+            return;
+          }
+          console.log('⚠️ فشل حفظ في المجلد، ننتقل للطريقة البديلة');
+        }
+
+        // 4. الطريقة البديلة: استخدام showSaveFilePicker
+        try {
+          if (window.showSaveFilePicker) {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: fileName,
+              types: [{
+                description: 'Mido Backup File',
+                accept: { 'application/json': ['.mido'] },
+              }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(jsonStr);
+            await writable.close();
+            showToast('✅ تم حفظ الملف بنجاح');
+            return;
+          }
+        } catch (saveErr) {
+          if (saveErr.name === 'AbortError') {
+            showToast('❌ تم إلغاء الحفظ');
+            return;
+          }
+        }
+
+        // 5. آخر حل: تحميل عادي
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -3860,15 +3985,14 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1500);
-
-        showToast('✅ تم التحميل في مجلد التنزيلات');
 
         setTimeout(() => {
+          URL.revokeObjectURL(url);
+          showToast('✅ تم التحميل في مجلد التنزيلات');
           showInAppNotification(
-            `📁 الملف موجود في:\n1. مجلد التنزيلات (Downloads) - ${fileName}\n2. داخل التطبيق (الملفات المحفوظة)`,
+            `📁 الملف موجود في مجلد التنزيلات\n📄 ${fileName}`,
             'info',
-            10000
+            8000
           );
         }, 1500);
 
@@ -4043,6 +4167,7 @@
     });
 
     // ===== مشاركة النسخة الاحتياطية =====
+    // ===== مشاركة النسخة الاحتياطية =====
     document.getElementById('share-backup-btn').addEventListener('click', async () => {
       try {
         showToast('⏳ جاري تجهيز الملف للمشاركة...');
@@ -4062,8 +4187,10 @@
         const jsonStr = JSON.stringify(data, null, 2);
         const fileName = `Mido_Backup_${todayStr()}.mido`;
 
+        // حفظ في التطبيق
         await saveFileToApp(fileName, jsonStr);
 
+        // محاولة المشاركة
         if (navigator.share) {
           const blob = new Blob([jsonStr], { type: 'application/json' });
           const file = new File([blob], fileName, { type: 'application/json' });
@@ -4071,7 +4198,7 @@
             await navigator.share({
               files: [file],
               title: '📊 نسخة احتياطية Mido',
-              text: 'ملف النسخة الاحتياطية لتطبيق Mido'
+              text: `ملف النسخة الاحتياطية - ${todayStr()}`
             });
             showToast('✅ تم مشاركة الملف');
             return;
@@ -4083,8 +4210,34 @@
           }
         }
 
+        // إذا فشلت المشاركة، نحاول التحميل
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
+
+        // محاولة استخدام showSaveFilePicker
+        if (window.showSaveFilePicker) {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: fileName,
+              types: [{
+                description: 'Mido Backup File',
+                accept: { 'application/json': ['.mido'] },
+              }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(jsonStr);
+            await writable.close();
+            showToast('✅ تم حفظ الملف');
+            return;
+          } catch (e) {
+            if (e.name === 'AbortError') {
+              showToast('❌ تم إلغاء الحفظ');
+              return;
+            }
+          }
+        }
+
+        // آخر حل: تحميل عادي
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
@@ -4094,24 +4247,12 @@
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1500);
 
-        showToast('✅ تم تحميل الملف للمشاركة');
-
-        const controlPhone = getControlNumber();
-        if (controlPhone) {
-          const waPhone = normalizePhoneForWhatsapp(controlPhone);
-          const msg =
-            `📊 ملف النسخة الاحتياطية Mido\n📁 ${fileName}\n📅 ${todayStr()}\n\nتم حفظ الملف في مجلد التنزيلات`;
-          setTimeout(() => {
-            const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
-            window.open(waUrl, '_system');
-          }, 2000);
-        }
+        showToast('✅ تم تحميل الملف');
 
       } catch (err) {
         showToast('❌ خطأ: ' + err.message);
       }
     });
-
     // ========================================================================
     // ==================== INIT ============================================
     // ========================================================================
