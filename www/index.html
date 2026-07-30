@@ -3892,9 +3892,13 @@
 
     // ===== تصدير النسخة الاحتياطية =====
     // ===== تصدير وحفظ الملفات (النسخة الاحتياطية) =====
+    // ========================================================================
+    // ==================== تصدير النسخة الاحتياطية (الحل النهائي) ==========
+    // ========================================================================
+
     document.getElementById('backup-btn').addEventListener('click', async () => {
       try {
-        showToast('⏳ جاري تجهيز النسخة الاحتياطية...');
+        showToast('⏳ جاري تجهيز الملف...');
 
         // 1. تجهيز البيانات
         const data = {
@@ -3912,49 +3916,41 @@
         const jsonStr = JSON.stringify(data, null, 2);
         const fileName = `Mido_Backup_${todayStr()}.mido`;
 
-        // 2. حفظ في IndexedDB (دائماً)
+        // 2. حفظ في التطبيق (دائماً)
         await saveFileToApp(fileName, jsonStr);
-        showToast('✅ تم حفظ النسخة في التطبيق');
+        showToast('✅ تم حفظ الملف في التطبيق');
 
-        // 3. محاولة حفظ في مجلد التطبيق باستخدام File System Access API
-        try {
-          if ('showDirectoryPicker' in window) {
-            // اختيار المجلد
-            const dirHandle = await window.showDirectoryPicker();
+        // 3. ===== الطريقة المضمونة: استخدام navigator.share =====
+        if (navigator.share) {
+          try {
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const file = new File([blob], fileName, { type: 'application/json' });
 
-            // إنشاء الملف في المجلد
-            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(jsonStr);
-            await writable.close();
+            await navigator.share({
+              files: [file],
+              title: '📊 نسخة احتياطية Mido',
+              text: `ملف النسخة الاحتياطية - ${todayStr()}`
+            });
 
-            // حفظ مرجع المجلد
-            localStorage.setItem('mido_folder_handle', JSON.stringify({
-              name: dirHandle.name,
-              timestamp: Date.now()
-            }));
-
-            showToast(`✅ تم حفظ الملف في مجلد "${dirHandle.name}"`);
+            showToast('✅ تم حفظ ومشاركة الملف بنجاح');
             showInAppNotification(
-              `💾 تم حفظ النسخة الاحتياطية\n📁 المجلد: ${dirHandle.name}\n📄 الملف: ${fileName}`,
+              `💾 تم حفظ الملف في التطبيق\n📄 ${fileName}\n📤 تم فتح المشاركة`,
               'success',
-              8000
+              6000
             );
             return;
-          } else {
-            showToast('⚠️ متصفحك لا يدعم حفظ الملفات، تم الحفظ في التطبيق');
+          } catch (shareErr) {
+            if (shareErr.name === 'AbortError') {
+              showToast('❌ تم إلغاء المشاركة');
+              return;
+            }
+            console.log('⚠️ فشل المشاركة، نحاول طريقة أخرى');
           }
-        } catch (fsErr) {
-          if (fsErr.name === 'AbortError' || fsErr.message.includes('abort')) {
-            showToast('❌ تم إلغاء اختيار المجلد');
-            return;
-          }
-          console.log('⚠️ فشل حفظ في المجلد، ننتقل للطريقة البديلة');
         }
 
         // 4. الطريقة البديلة: استخدام showSaveFilePicker
-        try {
-          if (window.showSaveFilePicker) {
+        if (window.showSaveFilePicker) {
+          try {
             const handle = await window.showSaveFilePicker({
               suggestedName: fileName,
               types: [{
@@ -3966,12 +3962,17 @@
             await writable.write(jsonStr);
             await writable.close();
             showToast('✅ تم حفظ الملف بنجاح');
+            showInAppNotification(
+              `💾 تم حفظ الملف\n📄 ${fileName}`,
+              'success',
+              6000
+            );
             return;
-          }
-        } catch (saveErr) {
-          if (saveErr.name === 'AbortError') {
-            showToast('❌ تم إلغاء الحفظ');
-            return;
+          } catch (saveErr) {
+            if (saveErr.name === 'AbortError') {
+              showToast('❌ تم إلغاء الحفظ');
+              return;
+            }
           }
         }
 
@@ -3992,15 +3993,19 @@
           showInAppNotification(
             `📁 الملف موجود في مجلد التنزيلات\n📄 ${fileName}`,
             'info',
-            8000
+            6000
           );
-        }, 1500);
+        }, 3000);
 
       } catch (err) {
         showToast('❌ خطأ: ' + err.message);
+        showInAppNotification(
+          `❌ فشل التصدير: ${err.message}\nالملف محفوظ في التطبيق (الملفات المحفوظة)`,
+          'danger',
+          8000
+        );
       }
     });
-
     // ===== عرض الملفات المحفوظة =====
     async function showSavedFiles() {
       try {
