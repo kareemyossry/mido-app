@@ -1112,7 +1112,7 @@
         <button class="btn-secondary-action" id="control-number-btn">📱 رقم التحكم</button>
         <button class="btn-secondary-action" id="daily-summary-btn">📊 إرسال تقرير اليوم</button>
         <button class="btn-secondary-action btn-logout" id="logout-btn">🚪 تسجيل الخروج</button>
-        <input type="file" id="import-file" accept=".mido,.json" style="display:none">
+        <input type="file" id="import-file" accept=".json,.mido" style="display:none">
       </div>
     </aside>
 
@@ -1545,7 +1545,7 @@
     class LocalDB {
       constructor() {
         this.dbName = 'MidoOfflineAppDB';
-        this.version = 3;
+        this.version = 4;
         this.db = null;
       }
 
@@ -3760,62 +3760,54 @@
     }
 
     // ========================================================================
-    // ==================== BACKUP & RESTORE (إصلاح التصدير للموبايل) =======
+    // ==================== BACKUP & RESTORE (LocalStorage للملفات) =========
     // ========================================================================
-    // المشكلة الأصلية: الكود كان بيتخطى Web Share API بمرفقات (files) وبيروح
-    // على Capacitor بس، أو تحميل عادي مش شغال جوه WebView. كمان زر "حفظ في
-    // مجلد التطبيق" كان فيه handler مزدوج بيستخدم showDirectoryPicker اللي
-    // مش مدعوم على الموبايل.
-    //
-    // الإصلاح: ترتيب الأولويات:
-    //   1) Capacitor Filesystem + Share (لو التطبيق شغال كـ APK حقيقي)
-    //   2) Web Share API بمرفق File (المسار الأساسي على الموبايل/PWA)
-    //   3) تحميل عادي بالـ <a download> (للمتصفح على الكمبيوتر)
 
-    function hasCapacitorFS() {
-      return !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem);
+    // === تخزين الملفات في localStorage مع ضغط البيانات ===
+    function getSavedFilesList() {
+      try {
+        const files = localStorage.getItem('mido_saved_files');
+        return files ? JSON.parse(files) : [];
+      } catch {
+        return [];
+      }
     }
 
-    function openFileDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open('MidoFileStore', 1);
-        request.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains('files')) {
-            db.createObjectStore('files', { keyPath: 'name' });
-          }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject('فشل فتح قاعدة الملفات');
+    function setSavedFilesList(files) {
+      localStorage.setItem('mido_saved_files', JSON.stringify(files));
+    }
+
+    function saveFileToAppLocal(fileName, data) {
+      const files = getSavedFilesList();
+      // حذف الملف القديم بنفس الاسم إن وجد
+      const existing = files.findIndex(f => f.name === fileName);
+      if (existing !== -1) {
+        files.splice(existing, 1);
+      }
+      files.push({
+        name: fileName,
+        data: data,
+        date: todayStr(),
+        size: data.length
       });
+      setSavedFilesList(files);
+      return true;
     }
 
-    async function saveFileToApp(fileName, data) {
-      try {
-        const db = await openFileDB();
-        const tx = db.transaction('files', 'readwrite');
-        const store = tx.objectStore('files');
-        store.put({ name: fileName, data: data, date: todayStr(), size: data.length });
-        await new Promise((resolve) => tx.oncomplete = resolve);
+    function getFileFromAppLocal(fileName) {
+      const files = getSavedFilesList();
+      return files.find(f => f.name === fileName) || null;
+    }
+
+    function deleteSavedFileLocal(fileName) {
+      const files = getSavedFilesList();
+      const existing = files.findIndex(f => f.name === fileName);
+      if (existing !== -1) {
+        files.splice(existing, 1);
+        setSavedFilesList(files);
         return true;
-      } catch (err) {
-        console.log('فشل حفظ الملف:', err);
-        return false;
       }
-    }
-
-    async function getFileFromApp(fileName) {
-      try {
-        const db = await openFileDB();
-        const tx = db.transaction('files', 'readonly');
-        const store = tx.objectStore('files');
-        return new Promise((resolve) => {
-          const request = store.get(fileName);
-          request.onsuccess = () => resolve(request.result);
-        });
-      } catch (err) {
-        return null;
-      }
+      return false;
     }
 
     async function collectBackupData() {
@@ -3832,46 +3824,20 @@
       };
     }
 
-    // ===== الدالة المركزية للتصدير/المشاركة - بترتيب أولويات مضمون =====
+    // ===== الدالة المركزية للتصدير/المشاركة =====
     async function doBackupExportAndShare() {
       const data = await collectBackupData();
       const jsonStr = JSON.stringify(data, null, 2);
-      const fileName = `Mido_Backup_${todayStr()}.mido`;
+      // استخدام امتداد .json بدلاً من .mido ليتعرف عليه الموبايل
+      const fileName = `Mido_Backup_${todayStr()}.json`;
 
-      // نحفظ نسخة جوه التطبيق دايمًا (احتياطي إضافي)
-      await saveFileToApp(fileName, jsonStr);
+      // حفظ في localStorage أولاً
+      saveFileToAppLocal(fileName, jsonStr);
 
-      // 1) Capacitor (APK حقيقي على أندرويد)
-      if (hasCapacitorFS()) {
-        try {
-          const { Filesystem, Directory } = window.Capacitor.Plugins;
-          const write = await Filesystem.writeFile({
-            path: fileName,
-            data: jsonStr,
-            directory: Directory.Cache,
-            encoding: 'utf8'
-          });
-
-          if (window.Capacitor.Plugins.Share) {
-            await window.Capacitor.Plugins.Share.share({
-              title: 'نسخة احتياطية من Mido',
-              text: `ملف النسخة الاحتياطية - ${todayStr()}`,
-              url: write.uri
-            });
-            showToast('✅ اختار مكان الحفظ (درايف / واتساب / ملفات)');
-          } else {
-            showToast('✅ تم حفظ الملف: ' + fileName);
-          }
-          return;
-        } catch (err) {
-          console.log('Capacitor فشل، نكمل بمسار الويب:', err);
-        }
-      }
-
-      // 2) Web Share API بمرفق ملف (المسار الأساسي على الموبايل/PWA)
-      if (navigator.canShare && navigator.canShare({ files: [new File([jsonStr], fileName, { type: 'application/json' })] })) {
-        try {
-          const file = new File([jsonStr], fileName, { type: 'application/json' });
+      // 1) Web Share API بمرفق ملف (المسار الأساسي على الموبايل/PWA)
+      try {
+        const file = new File([jsonStr], fileName, { type: 'application/json' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
             title: 'نسخة احتياطية من Mido',
@@ -3879,27 +3845,31 @@
           });
           showToast('✅ تم مشاركة النسخة الاحتياطية');
           return;
-        } catch (err) {
-          if (err.name === 'AbortError') {
-            showToast('❌ تم إلغاء المشاركة');
-            return;
-          }
-          console.log('Web Share فشل، نكمل بالتحميل:', err);
         }
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          showToast('❌ تم إلغاء المشاركة');
+          return;
+        }
+        console.log('Web Share فشل، نكمل بالتحميل:', err);
       }
 
-      // 3) تحميل عادي (للمتصفح على الكمبيوتر)
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-      showToast('✅ تم تنزيل النسخة الاحتياطية');
+      // 2) تحميل عادي (للمتصفح على الكمبيوتر)
+      try {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        showToast('✅ تم تنزيل النسخة الاحتياطية');
+      } catch (err) {
+        showToast('✅ تم حفظ الملف في التطبيق (الملفات المحفوظة)');
+      }
     }
 
     document.getElementById('backup-btn').addEventListener('click', async () => {
@@ -3907,7 +3877,7 @@
         showToast('⏳ جاري تجهيز الملف...');
         await doBackupExportAndShare();
       } catch (err) {
-        showToast('❌ خطأ: ' + (err.message || err) + ' - الملف محفوظ جوه "الملفات المحفوظة" على أي حال');
+        showToast('❌ خطأ: ' + (err.message || err));
       }
     });
 
@@ -3916,11 +3886,10 @@
         showToast('⏳ جاري تجهيز الملف للمشاركة...');
         await doBackupExportAndShare();
       } catch (err) {
-        showToast('❌ خطأ: ' + (err.message || err) + ' - الملف محفوظ جوه "الملفات المحفوظة" على أي حال');
+        showToast('❌ خطأ: ' + (err.message || err));
       }
     });
 
-    // ===== زر "حفظ في مجلد التطبيق" - بيستخدم نفس الآلية المضمونة =====
     document.getElementById('save-to-folder-btn').addEventListener('click', async () => {
       try {
         showToast('⏳ جاري تجهيز الملف...');
@@ -3934,59 +3903,48 @@
 
     // ===== عرض الملفات المحفوظة =====
     async function showSavedFiles() {
-      try {
-        const db = await openFileDB();
-        const tx = db.transaction('files', 'readonly');
-        const store = tx.objectStore('files');
-        const request = store.getAll();
-        const files = await new Promise((resolve) => {
-          request.onsuccess = () => resolve(request.result || []);
-        });
+      const files = getSavedFilesList();
 
-        if (files.length === 0) {
-          showToast('📂 مفيش ملفات نسخ احتياطي');
-          return;
-        }
+      if (files.length === 0) {
+        showToast('📂 مفيش ملفات نسخ احتياطي');
+        return;
+      }
 
-        let html = `<h2>📂 الملفات المحفوظة</h2>
+      let html = `<h2>📂 الملفات المحفوظة</h2>
         <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">
-          اختر ملف لاسترجاع البيانات منه (ملفات .mido):
+          اختر ملف لاسترجاع البيانات منه (ملفات .json):
         </p>
         <div style="max-height:350px; overflow-y:auto;">`;
 
-        for (const file of files) {
-          const sizeKB = (file.size / 1024).toFixed(1);
-          html += `
-            <div class="row-item">
-              <div class="row-main">
-                <div class="row-title">📊 ${file.name}</div>
-                <div class="row-sub">التاريخ: ${file.date || 'غير معروف'} · الحجم: ${sizeKB} KB</div>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="restoreFromApp('${file.name}')">🔄 استرجاع</button>
-              <button class="btn btn-danger-text btn-sm" onclick="deleteSavedFile('${file.name}')">🗑️</button>
+      for (const file of files) {
+        const sizeKB = (file.size / 1024).toFixed(1);
+        html += `
+          <div class="row-item">
+            <div class="row-main">
+              <div class="row-title">📊 ${file.name}</div>
+              <div class="row-sub">التاريخ: ${file.date || 'غير معروف'} · الحجم: ${sizeKB} KB</div>
             </div>
-          `;
-        }
+            <button class="btn btn-primary btn-sm" onclick="restoreFromAppLocal('${file.name}')">🔄 استرجاع</button>
+            <button class="btn btn-danger-text btn-sm" onclick="deleteSavedFileLocalUI('${file.name}')">🗑️</button>
+          </div>
+        `;
+      }
 
-        html += `</div>
+      html += `</div>
         <div class="modal-close-row">
           <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
         </div>`;
 
-        openModal(html);
-
-      } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
-      }
+      openModal(html);
     }
 
-    async function restoreFromApp(fileName) {
+    async function restoreFromAppLocal(fileName) {
       if (!confirm(`⚠️ هل أنت متأكد من استرجاع البيانات من "${fileName}"؟\nسيتم استبدال البيانات الحالية.`)) return;
 
       try {
         showToast('⏳ جاري استرجاع البيانات...');
 
-        const file = await getFileFromApp(fileName);
+        const file = getFileFromAppLocal(fileName);
         if (!file) {
           showToast('❌ الملف غير موجود');
           return;
@@ -4019,20 +3977,14 @@
       }
     }
 
-    async function deleteSavedFile(fileName) {
+    function deleteSavedFileLocalUI(fileName) {
       if (!confirm(`⚠️ هل أنت متأكد من حذف الملف "${fileName}"؟`)) return;
 
-      try {
-        const db = await openFileDB();
-        const tx = db.transaction('files', 'readwrite');
-        const store = tx.objectStore('files');
-        store.delete(fileName);
-        await new Promise((resolve) => tx.oncomplete = resolve);
-
+      if (deleteSavedFileLocal(fileName)) {
         showToast('✅ تم حذف الملف');
         showSavedFiles();
-      } catch (err) {
-        showToast('❌ خطأ: ' + err.message);
+      } else {
+        showToast('❌ لم يتم العثور على الملف');
       }
     }
 
